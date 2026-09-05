@@ -23,8 +23,6 @@ kotlin {
 }
 dependencies {
     implementation(project(":shared"))
-    implementation(project(":llm:deepseek"))
-    implementation(libs.kotlinx.coroutines.core)
 
     implementation(libs.androidx.activity.compose)
 

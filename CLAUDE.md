@@ -34,6 +34,15 @@ Package root everywhere: `com.yongda.ainativeagent`. Kotlin source lives under `
 - JVM target 11, `kotlin.code.style=official`, `android.nonTransitiveRClass=true`, Gradle configuration-cache enabled.
 - Planned stack per roadmap: Coroutines · Retrofit/OkHttp (or Ktor) · Room (optional) · DeepSeek / OpenAI-compatible API · later MNN for on-device models.
 
+## UI 技术选型（项目规则，中文）
+
+聊天界面（stream chat UI）的技术选型已定，后续开发遵循：
+
+- **Markdown 渲染** — 采用 OSS **`com.mikepenz:multiplatform-markdown-renderer`**（配 `-m3` Material3 主题模块，代码高亮用 `-code`）。理由：专为 LLM 流式设计，`collectAsStreamingMarkdownState()` 可直接消费 `Flow<String>`，append-only 只重解析尾部、逐 token 追加也轻量；CMP 全平台、`commonMain` 可调用；Apache-2.0。版本走版本目录 `libs.*`，实装时按依赖解析确定最新（0.4x 系）。
+- **聊天 UI 本体（吹き出し/气泡列表、输入栏、自动滚动）— 自建**，不引入重量级聊天 SDK（如 Stream Chat Android：仅 Android、重、需后端，属过度设计）。用 Compose Multiplatform + Material3 手写，保持可控且可作为独立可复用模块。
+- **模块化**：聊天 UI 做成边界清晰、可独立发布的模块（纯 UI 组件 `ChatScreen(state, onSend, onCancel, onRetry)`，不含业务/网络依赖）；ViewModel 依赖抽象 `LlmProvider`，负责满足验收基准（多轮历史 · 流式追加 · 异常处理 · 中断生成 · 重试）。
+- 一律用 **Compose Multiplatform**（`org.jetbrains.compose.*`），不用 androidx.compose。
+
 ## Target architecture (the goal, mostly not yet built)
 
 ```

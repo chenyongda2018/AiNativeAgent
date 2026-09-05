@@ -44,6 +44,9 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            // 聊天界面：UI + ViewModel + DeepSeek provider 装配
+            implementation(project(":chat:vm"))
+            implementation(project(":llm:deepseek"))
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
