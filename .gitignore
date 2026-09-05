@@ -17,3 +17,6 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# 本地开发路线软链（指向 Obsidian 笔记，不提交远程）
+/roadmap
