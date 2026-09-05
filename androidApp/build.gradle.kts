@@ -1,8 +1,19 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
+}
+
+// 构建时从 local.properties 读 DEEPSEEK_API_KEY，编译进 BuildConfig 供真机 App 读取。
+// key 不入库（local.properties 已被 .gitignore 忽略）。注意：仅供本地/调试，勿用于 release。
+val deepSeekApiKey: String = run {
+    val f = rootProject.file("local.properties")
+    if (!f.exists()) return@run ""
+    val props = Properties()
+    f.inputStream().use { props.load(it) }
+    props.getProperty("DEEPSEEK_API_KEY", "")
 }
 
 kotlin {
@@ -12,6 +23,8 @@ kotlin {
 }
 dependencies {
     implementation(project(":shared"))
+    implementation(project(":llm:deepseek"))
+    implementation(libs.kotlinx.coroutines.core)
 
     implementation(libs.androidx.activity.compose)
 
@@ -29,6 +42,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepSeekApiKey\"")
     }
     packaging {
         resources {
@@ -50,5 +64,6 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
