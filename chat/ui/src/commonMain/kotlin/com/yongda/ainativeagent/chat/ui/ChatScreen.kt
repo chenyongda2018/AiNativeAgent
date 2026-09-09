@@ -1,5 +1,6 @@
 package com.yongda.ainativeagent.chat.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,11 +10,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -22,15 +25,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.mikepenz.markdown.m3.Markdown
+import kotlinx.coroutines.launch
 
 /**
  * 纯 UI 聊天界面：气泡列表 + 错误条 + 输入栏，全部由 [state] 与回调驱动，无任何业务/网络依赖。
@@ -45,22 +51,70 @@ fun ChatScreen(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
-    // 新消息或流式增量到达时自动滚到底部
-    LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.content) {
-        if (state.messages.isNotEmpty()) {
-            listState.animateScrollToItem(state.messages.lastIndex)
+    val scope = rememberCoroutineScope()
+    val totalMessageCount = state.messages.size + if (state.streamingMessage == null) 0 else 1
+    val lastMessageId = state.streamingMessage?.id ?: state.messages.lastOrNull()?.id
+    val showScrollToLatest by remember {
+        derivedStateOf { listState.canScrollForward }
+    }
+
+    // 仅在消息「条数」变化时（新问答开始）把最新一条对齐到视口顶部；
+    // 流式增量增长不自动跟随，保持在最新回复顶部，是否看到底由用户用下箭头决定。
+    LaunchedEffect(lastMessageId) {
+        if (totalMessageCount > 0) {
+            listState.animateScrollToItem(totalMessageCount - 1)
         }
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = PaddingValues(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(state.messages, key = { it.id }) { msg ->
-                MessageBubble(msg)
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(
+                    items = state.messages,
+                    key = { it.id },
+                    contentType = { it.role },
+                ) { msg ->
+                    MessageBubble(msg)
+                }
+                state.streamingMessage?.let { streaming ->
+                    item(
+                        key = streaming.id,
+                        contentType = "streaming-assistant",
+                    ) {
+                        MessageBubble(streaming)
+                    }
+                }
+            }
+
+            // 下方仍有未显示内容时，显示「滚到最新」下箭头（仿豆包）。
+            // canScrollForward 为 false（已到底/内容不满屏）时自动隐藏。
+            if (showScrollToLatest) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shadowElevation = 4.dp,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 8.dp)
+                        .size(36.dp)
+                        .clickable {
+                            scope.launch {
+                                if (totalMessageCount == 0) return@launch
+                                // 可靠滚到底：scrollToItem（瞬时）对超大 scrollOffset 会 clamp 到
+                                // 最大可滚动量，稳定贴到最新消息底部。
+                                // 不用 animateScrollToItem(lastIndex, Int.MAX_VALUE)：其动画距离
+                                // 估算会因超大 offset 溢出/提前结束，经常只停在该项顶部滚不到底。
+                                listState.scrollToItem(totalMessageCount - 1, Int.MAX_VALUE)
+                            }
+                        },
+                ) {
+                    Box(contentAlignment = Alignment.Center) { Text("↓") }
+                }
             }
         }
 
@@ -79,6 +133,7 @@ fun ChatScreen(
 @Composable
 private fun MessageBubble(msg: ChatMessageUi) {
     val isUser = msg.role == ChatRole.USER
+    val bodyStyle = MaterialTheme.typography.bodyLarge
     val bubbleColor =
         if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
     Row(
@@ -92,11 +147,23 @@ private fun MessageBubble(msg: ChatMessageUi) {
         ) {
             Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 when {
-                    isUser -> Text(msg.content)
+                    isUser -> Text(msg.content, style = bodyStyle)
                     // 助手气泡：空且流式中时显示占位光标
-                    msg.content.isEmpty() && msg.streaming -> Text("▍")
-                    // Markdown 渲染 LLM 输出；文本色由 Surface 的 contentColor 决定
-                    else -> Markdown(content = msg.content)
+                    msg.content.isEmpty() && msg.streaming -> Text("▍", style = bodyStyle)
+                    // 流式阶段不解析 Markdown，避免每帧重复构建 AST。
+                    msg.streaming -> Text(msg.content, style = bodyStyle)
+                    // Markdown 默认异步解析；解析期间保留同样式纯文本，避免气泡先收缩再展开。
+                    else -> Markdown(
+                        content = msg.content,
+                        modifier = Modifier.fillMaxWidth(),
+                        loading = { loadingModifier ->
+                            Text(
+                                text = msg.content,
+                                style = bodyStyle,
+                                modifier = loadingModifier,
+                            )
+                        },
+                    )
                 }
             }
         }

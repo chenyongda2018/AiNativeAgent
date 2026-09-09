@@ -36,8 +36,9 @@ class DeepSeekProvider(
             messages = messages.map { RequestMessage(it.role.toWire(), it.content) },
             stream = true,
         )
-        client.preparePost("${config.baseUrl}/chat/completions") {
+        client.preparePost("${config.baseUrl.trimEnd('/')}/chat/completions") {
             header(HttpHeaders.Authorization, "Bearer ${config.apiKey}")
+            header(HttpHeaders.Accept, ContentType.Text.EventStream.toString())
             contentType(ContentType.Application.Json)
             setBody(request)
         }.execute { response ->

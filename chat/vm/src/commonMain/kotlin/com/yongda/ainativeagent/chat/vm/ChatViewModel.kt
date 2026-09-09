@@ -12,6 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -70,8 +71,7 @@ class ChatViewModel(
         val assistantId = nextId++
         _state.update {
             it.copy(
-                messages = it.messages + ChatMessageUi(assistantId, ChatRole.ASSISTANT, "", streaming = true),
-                isStreaming = true,
+                streamingMessage = ChatMessageUi(assistantId, ChatRole.ASSISTANT, "", streaming = true),
                 error = null,
             )
         }
@@ -85,34 +85,56 @@ class ChatViewModel(
         }
 
         streamJob = viewModelScope.launch {
-            val sb = StringBuilder()
+            val receivedContent = StringBuilder()
+            var visibleContent = ""
             try {
-                provider.streamChat(history).collect { delta ->
-                    sb.append(delta)
-                    updateAssistant(assistantId, sb.toString(), streaming = true)
+                provider.streamChat(history)
+                    .onEach(receivedContent::append)
+                    .paceTextForUi()
+                    .collect { content ->
+                    visibleContent = content
+                    updateStreamingAssistant(assistantId, content)
                 }
-                updateAssistant(assistantId, sb.toString(), streaming = false)
-                _state.update { it.copy(isStreaming = false) }
+                finishAssistant(assistantId, visibleContent)
             } catch (e: CancellationException) {
-                // 中断：定格已生成部分，向上传播取消
-                updateAssistant(assistantId, sb.toString(), streaming = false)
-                _state.update { it.copy(isStreaming = false) }
+                // 中断：包含已经到达但尚未被显示节奏器排空的内容，避免丢字。
+                finishAssistant(assistantId, receivedContent.toString())
                 throw e
             } catch (e: Exception) {
                 // 网络/协议异常：保留部分内容，展示错误条供重试
-                updateAssistant(assistantId, sb.toString(), streaming = false)
-                _state.update { it.copy(isStreaming = false, error = e.message ?: "请求失败，请重试") }
+                finishAssistant(
+                    id = assistantId,
+                    content = receivedContent.toString(),
+                    error = e.message ?: "请求失败，请重试",
+                )
             }
         }
     }
 
-    private fun updateAssistant(id: Long, content: String, streaming: Boolean) {
+    private fun updateStreamingAssistant(id: Long, content: String) {
         _state.update { st ->
-            st.copy(
-                messages = st.messages.map {
-                    if (it.id == id) it.copy(content = content, streaming = streaming) else it
-                },
-            )
+            val streaming = st.streamingMessage
+            if (streaming?.id == id) {
+                st.copy(streamingMessage = streaming.copy(content = content))
+            } else {
+                st
+            }
+        }
+    }
+
+    /** 把高频变化的流式草稿一次性并入历史列表。 */
+    private fun finishAssistant(id: Long, content: String, error: String? = null) {
+        _state.update { st ->
+            val streaming = st.streamingMessage
+            if (streaming?.id == id) {
+                st.copy(
+                    messages = st.messages + streaming.copy(content = content, streaming = false),
+                    streamingMessage = null,
+                    error = error,
+                )
+            } else {
+                st
+            }
         }
     }
 

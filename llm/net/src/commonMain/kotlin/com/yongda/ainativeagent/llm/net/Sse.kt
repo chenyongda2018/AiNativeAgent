@@ -2,6 +2,7 @@ package com.yongda.ainativeagent.llm.net
 
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
+import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readUTF8Line
 
 /**
@@ -12,12 +13,39 @@ import io.ktor.utils.io.readUTF8Line
  * 收集协程被取消时读取随之中断，实现「中断生成」。
  */
 suspend fun HttpResponse.collectSseData(onData: suspend (String) -> Unit) {
-    val channel = bodyAsChannel()
-    while (true) {
-        val line = channel.readUTF8Line() ?: break
-        if (line.isBlank() || !line.startsWith("data:")) continue
-        val data = line.removePrefix("data:").trim()
-        if (data == "[DONE]") break
+    bodyAsChannel().collectSseData(onData)
+}
+
+internal suspend fun ByteReadChannel.collectSseData(onData: suspend (String) -> Unit) {
+    val dataLines = mutableListOf<String>()
+
+    suspend fun dispatch(): Boolean {
+        if (dataLines.isEmpty()) return false
+        val data = dataLines.joinToString("\n")
+        dataLines.clear()
+        if (data == "[DONE]") return true
         onData(data)
+        return false
+    }
+
+    while (true) {
+        val line = readUTF8Line()
+        if (line == null) {
+            dispatch()
+            break
+        }
+        if (line.isEmpty()) {
+            if (dispatch()) break
+            continue
+        }
+        if (line.startsWith(":")) continue
+
+        val separator = line.indexOf(':')
+        val field = if (separator < 0) line else line.substring(0, separator)
+        if (field != "data") continue
+
+        var value = if (separator < 0) "" else line.substring(separator + 1)
+        if (value.startsWith(' ')) value = value.substring(1)
+        dataLines += value
     }
 }
