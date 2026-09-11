@@ -9,9 +9,10 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
-private val DEFAULT_FRAME_INTERVAL = 32.milliseconds
-private const val DEFAULT_CATCH_UP_FRAMES = 4
-private const val DEFAULT_MAX_CODE_POINTS_PER_FRAME = 24
+private val DEFAULT_FRAME_INTERVAL = 16.milliseconds
+private const val DEFAULT_CATCH_UP_FRAMES = 7
+private const val DEFAULT_NORMAL_MAX_CODE_POINTS_PER_FRAME = 12
+private const val DEFAULT_MAX_DRAIN_FRAMES = 30
 
 /**
  * 将不规则的网络 chunk 转换成固定节奏的完整文本快照。
@@ -22,11 +23,13 @@ private const val DEFAULT_MAX_CODE_POINTS_PER_FRAME = 24
 internal fun Flow<String>.paceTextForUi(
     frameInterval: Duration = DEFAULT_FRAME_INTERVAL,
     catchUpFrames: Int = DEFAULT_CATCH_UP_FRAMES,
-    maxCodePointsPerFrame: Int = DEFAULT_MAX_CODE_POINTS_PER_FRAME,
+    normalMaxCodePointsPerFrame: Int = DEFAULT_NORMAL_MAX_CODE_POINTS_PER_FRAME,
+    maxDrainFrames: Int = DEFAULT_MAX_DRAIN_FRAMES,
 ): Flow<String> = flow {
     require(!frameInterval.isNegative()) { "frameInterval must not be negative" }
     require(catchUpFrames > 0) { "catchUpFrames must be positive" }
-    require(maxCodePointsPerFrame > 0) { "maxCodePointsPerFrame must be positive" }
+    require(normalMaxCodePointsPerFrame > 0) { "normalMaxCodePointsPerFrame must be positive" }
+    require(maxDrainFrames > 0) { "maxDrainFrames must be positive" }
 
     coroutineScope {
         val chunks = Channel<String>(Channel.BUFFERED)
@@ -46,11 +49,13 @@ internal fun Flow<String>.paceTextForUi(
         val visible = StringBuilder()
         var readIndex = 0
         var sourceCompleted = false
+        var codePointBudget = 0
 
         while (!sourceCompleted || readIndex < received.length) {
             // 没有积压时挂起等待，避免空转；第一批内容到达后不额外等待一帧。
             if (readIndex >= received.length && !sourceCompleted) {
                 val result = chunks.receiveCatching()
+                result.exceptionOrNull()?.let { throw it }
                 val chunk = result.getOrNull()
                 if (chunk == null) sourceCompleted = true else received.append(chunk)
             }
@@ -58,6 +63,7 @@ internal fun Flow<String>.paceTextForUi(
             // 合并这一帧前已经到达的所有 chunk，网络频率不会直接驱动 Compose。
             while (!sourceCompleted) {
                 val result = chunks.tryReceive()
+                result.exceptionOrNull()?.let { throw it }
                 val chunk = result.getOrNull()
                 when {
                     chunk != null -> received.append(chunk)
@@ -68,9 +74,12 @@ internal fun Flow<String>.paceTextForUi(
 
             val pendingCodeUnits = received.length - readIndex
             if (pendingCodeUnits > 0) {
-                val codePointBudget =
-                    ((pendingCodeUnits + catchUpFrames - 1) / catchUpFrames)
-                        .coerceIn(1, maxCodePointsPerFrame)
+                codePointBudget = maxOf(
+                    codePointBudget,
+                    (1 + (pendingCodeUnits - 1) / catchUpFrames)
+                        .coerceAtMost(normalMaxCodePointsPerFrame),
+                    1 + (pendingCodeUnits - 1) / maxDrainFrames,
+                )
                 val endIndex = received.advanceCodePoints(
                     startIndex = readIndex,
                     count = codePointBudget,
@@ -83,8 +92,12 @@ internal fun Flow<String>.paceTextForUi(
                 }
             }
 
+            if (readIndex >= received.length) {
+                codePointBudget = 0
+            }
+
             // 偶尔压缩已经消费的前缀，避免长回答让接收缓冲无限保留。
-            if (readIndex >= 4_096 && readIndex * 2 >= received.length) {
+            if (readIndex >= 4_096 && readIndex >= received.length / 2) {
                 received.deleteRange(0, readIndex)
                 readIndex = 0
             }

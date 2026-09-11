@@ -16,6 +16,7 @@ kotlin {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_11
         }
+        withHostTest {}
     }
 
     sourceSets {
@@ -24,6 +25,7 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
+            implementation(libs.kotlinx.coroutines.core)
             // LLM 输出为 Markdown：用 mikepenz 的流式友好渲染器
             implementation(libs.markdown.renderer)
             implementation(libs.markdown.renderer.m3)

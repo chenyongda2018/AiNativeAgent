@@ -8,7 +8,14 @@ import com.yongda.ainativeagent.chat.ui.ChatUiState
 import com.yongda.ainativeagent.llm.core.ChatMessage
 import com.yongda.ainativeagent.llm.core.LlmProvider
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +38,7 @@ import kotlinx.coroutines.launch
 class ChatViewModel(
     private val provider: LlmProvider,
     private val systemPrompt: String = DEFAULT_SYSTEM_PROMPT,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ChatUiState())
@@ -67,6 +75,7 @@ class ChatViewModel(
         generate()
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
     private fun generate() {
         val assistantId = nextId++
         _state.update {
@@ -76,26 +85,25 @@ class ChatViewModel(
             )
         }
 
-        // 构造发给模型的历史：system + 除本次占位外的全部消息
-        val history = buildList {
-            add(ChatMessage(ChatMessage.Role.SYSTEM, systemPrompt))
-            _state.value.messages
-                .filter { it.id != assistantId }
-                .forEach { add(ChatMessage(it.role.toCore(), it.content)) }
-        }
-
-        streamJob = viewModelScope.launch {
+        val messages = _state.value.messages
+        streamJob = viewModelScope.launch(dispatcher, start = CoroutineStart.ATOMIC) {
             val receivedContent = StringBuilder()
-            var visibleContent = ""
             try {
-                provider.streamChat(history)
-                    .onEach(receivedContent::append)
-                    .paceTextForUi()
-                    .collect { content ->
-                    visibleContent = content
-                    updateStreamingAssistant(assistantId, content)
+                ensureActive()
+                // 构造发给模型的历史：system + 除本次占位外的全部消息
+                val history = buildList {
+                    add(ChatMessage(ChatMessage.Role.SYSTEM, systemPrompt))
+                    messages.forEach { add(ChatMessage(it.role.toCore(), it.content)) }
                 }
-                finishAssistant(assistantId, visibleContent)
+                coroutineScope {
+                    provider.streamChat(history)
+                        .onEach(receivedContent::append)
+                        .paceTextForUi()
+                        .collect { content ->
+                            updateStreamingAssistant(assistantId, content)
+                        }
+                }
+                finishAssistant(assistantId, receivedContent.toString())
             } catch (e: CancellationException) {
                 // 中断：包含已经到达但尚未被显示节奏器排空的内容，避免丢字。
                 finishAssistant(assistantId, receivedContent.toString())

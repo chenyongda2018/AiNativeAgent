@@ -28,6 +28,16 @@ dependencies {
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
+    debugImplementation(libs.compose.uiTestManifest)
+
+    androidTestImplementation(project(":chat:ui"))
+    androidTestImplementation(libs.compose.uiTestJunit4)
+    androidTestImplementation(libs.compose.runtime)
+    androidTestImplementation(libs.compose.material3)
+    androidTestImplementation(libs.compose.foundation)
+    androidTestImplementation(libs.androidx.testExt.junit)
+    androidTestImplementation(libs.androidx.testRunner)
+    androidTestImplementation(libs.junit)
 }
 
 android {
@@ -40,6 +50,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepSeekApiKey\"")
     }
     packaging {

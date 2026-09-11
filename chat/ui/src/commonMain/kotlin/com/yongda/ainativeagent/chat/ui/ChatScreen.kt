@@ -1,6 +1,7 @@
 package com.yongda.ainativeagent.chat.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,10 +10,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -25,23 +27,28 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.model.State
+import com.mikepenz.markdown.model.markdownAnimations
+import com.mikepenz.markdown.model.parseMarkdownFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-/**
- * 纯 UI 聊天界面：气泡列表 + 错误条 + 输入栏，全部由 [state] 与回调驱动，无任何业务/网络依赖。
- * 可独立发布复用；接入任意 ViewModel 只需提供 state 与四个回调。
- */
 @Composable
 fun ChatScreen(
     state: ChatUiState,
@@ -50,73 +57,8 @@ fun ChatScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    val totalMessageCount = state.messages.size + if (state.streamingMessage == null) 0 else 1
-    val lastMessageId = state.streamingMessage?.id ?: state.messages.lastOrNull()?.id
-    val showScrollToLatest by remember {
-        derivedStateOf { listState.canScrollForward }
-    }
-
-    // 仅在消息「条数」变化时（新问答开始）把最新一条对齐到视口顶部；
-    // 流式增量增长不自动跟随，保持在最新回复顶部，是否看到底由用户用下箭头决定。
-    LaunchedEffect(lastMessageId) {
-        if (totalMessageCount > 0) {
-            listState.animateScrollToItem(totalMessageCount - 1)
-        }
-    }
-
-    Column(modifier = modifier.fillMaxSize()) {
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(
-                    items = state.messages,
-                    key = { it.id },
-                    contentType = { it.role },
-                ) { msg ->
-                    MessageBubble(msg)
-                }
-                state.streamingMessage?.let { streaming ->
-                    item(
-                        key = streaming.id,
-                        contentType = "streaming-assistant",
-                    ) {
-                        MessageBubble(streaming)
-                    }
-                }
-            }
-
-            // 下方仍有未显示内容时，显示「滚到最新」下箭头（仿豆包）。
-            // canScrollForward 为 false（已到底/内容不满屏）时自动隐藏。
-            if (showScrollToLatest) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shadowElevation = 4.dp,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 8.dp)
-                        .size(36.dp)
-                        .clickable {
-                            scope.launch {
-                                if (totalMessageCount == 0) return@launch
-                                // 可靠滚到底：scrollToItem（瞬时）对超大 scrollOffset 会 clamp 到
-                                // 最大可滚动量，稳定贴到最新消息底部。
-                                // 不用 animateScrollToItem(lastIndex, Int.MAX_VALUE)：其动画距离
-                                // 估算会因超大 offset 溢出/提前结束，经常只停在该项顶部滚不到底。
-                                listState.scrollToItem(totalMessageCount - 1, Int.MAX_VALUE)
-                            }
-                        },
-                ) {
-                    Box(contentAlignment = Alignment.Center) { Text("↓") }
-                }
-            }
-        }
+    Column(modifier = modifier.fillMaxSize().imePadding()) {
+        MessageList(state, Modifier.weight(1f).fillMaxWidth())
 
         state.error?.let { error ->
             ErrorBar(error = error, onRetry = onRetry)
@@ -131,9 +73,78 @@ fun ChatScreen(
 }
 
 @Composable
-private fun MessageBubble(msg: ChatMessageUi) {
+private fun MessageList(state: ChatUiState, modifier: Modifier = Modifier) {
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val markdownCache = remember { MarkdownRenderCache() }
+    val totalMessageCount = state.messages.size + if (state.streamingMessage == null) 0 else 1
+    val lastMessageId = state.streamingMessage?.id ?: state.messages.lastOrNull()?.id
+    val showScrollToLatest by remember {
+        derivedStateOf { listState.canScrollForward }
+    }
+
+    LaunchedEffect(lastMessageId) {
+        if (totalMessageCount > 0) {
+            listState.animateScrollToItem(totalMessageCount - 1)
+        }
+    }
+
+    Box(modifier = modifier) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(
+                items = state.messages,
+                key = { it.id },
+                contentType = { it.role },
+            ) { msg ->
+                MessageBubble(msg, markdownCache)
+            }
+            state.streamingMessage?.let { streaming ->
+                item(key = streaming.id, contentType = streaming.role) {
+                    MessageBubble(streaming, markdownCache)
+                }
+            }
+        }
+
+        if (showScrollToLatest) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shadowElevation = 4.dp,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 8.dp)
+                    .size(36.dp)
+                    .semantics { contentDescription = "滚动到最新消息" }
+                    .clickable {
+                        scope.launch {
+                            val lastIndex = listState.layoutInfo.totalItemsCount - 1
+                            if (lastIndex < 0) return@launch
+                            if (listState.layoutInfo.visibleItemsInfo.none { it.index == lastIndex }) {
+                                listState.animateScrollToItem(lastIndex)
+                            }
+                            val layout = listState.layoutInfo
+                            val lastItem = layout.visibleItemsInfo.lastOrNull()
+                                ?.takeIf { it.index == lastIndex } ?: return@launch
+                            val remaining = lastItem.offset + lastItem.size +
+                                layout.afterContentPadding - layout.viewportEndOffset
+                            if (remaining > 0) listState.animateScrollBy(remaining.toFloat())
+                        }
+                    },
+            ) {
+                Box(contentAlignment = Alignment.Center) { Text("↓") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessageBubble(msg: ChatMessageUi, markdownCache: MarkdownRenderCache) {
     val isUser = msg.role == ChatRole.USER
-    val bodyStyle = MaterialTheme.typography.bodyLarge
     val bubbleColor =
         if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
     Row(
@@ -143,30 +154,59 @@ private fun MessageBubble(msg: ChatMessageUi) {
         Surface(
             color = bubbleColor,
             shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.widthIn(max = 320.dp),
+            modifier = Modifier.widthIn(max = 320.dp)
+                .then(if (isUser) Modifier else Modifier.fillMaxWidth()),
         ) {
             Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 when {
-                    isUser -> Text(msg.content, style = bodyStyle)
-                    // 助手气泡：空且流式中时显示占位光标
-                    msg.content.isEmpty() && msg.streaming -> Text("▍", style = bodyStyle)
-                    // 流式阶段不解析 Markdown，避免每帧重复构建 AST。
-                    msg.streaming -> Text(msg.content, style = bodyStyle)
-                    // Markdown 默认异步解析；解析期间保留同样式纯文本，避免气泡先收缩再展开。
-                    else -> Markdown(
-                        content = msg.content,
-                        modifier = Modifier.fillMaxWidth(),
-                        loading = { loadingModifier ->
-                            Text(
-                                text = msg.content,
-                                style = bodyStyle,
-                                modifier = loadingModifier,
-                            )
-                        },
-                    )
+                    isUser -> Text(msg.content, style = MaterialTheme.typography.bodyLarge)
+                    msg.content.isEmpty() && msg.streaming ->
+                        Text("▍", style = MaterialTheme.typography.bodyLarge)
+                    msg.streaming -> StreamingText(msg.content)
+                    else -> CachedMarkdown(msg, markdownCache)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StreamingText(content: String, modifier: Modifier = Modifier) {
+    val paragraphs = remember { StreamingParagraphs() }
+    val lines = remember(content) { paragraphs.update(content) }
+    Column(modifier = modifier) {
+        lines.forEach { line ->
+            Text(
+                text = line,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CachedMarkdown(msg: ChatMessageUi, cache: MarkdownRenderCache) {
+    var parsed by remember(cache, msg.id, msg.content) {
+        mutableStateOf<State?>(cache.get(msg.id, msg.content))
+    }
+    LaunchedEffect(cache, msg.id, msg.content) {
+        if (parsed != null) return@LaunchedEffect
+        val result = withContext(Dispatchers.Default) {
+            parseMarkdownFlow(msg.content).first { it !is State.Loading }
+        }
+        if (result is State.Success) cache.put(msg.id, result)
+        parsed = result
+    }
+    val result = parsed
+    if (result is State.Success) {
+        Markdown(
+            state = result,
+            modifier = Modifier.fillMaxWidth(),
+            animations = markdownAnimations(animateTextSize = { this }),
+        )
+    } else {
+        StreamingText(msg.content)
     }
 }
 
@@ -193,7 +233,7 @@ private fun InputBar(
     onSend: (String) -> Unit,
     onCancel: () -> Unit,
 ) {
-    var text by remember { mutableStateOf("") }
+    var text by rememberSaveable { mutableStateOf("") }
     Surface(tonalElevation = 3.dp) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
@@ -204,7 +244,6 @@ private fun InputBar(
                 onValueChange = { text = it },
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("输入消息…") },
-                enabled = !isStreaming,
                 maxLines = 4,
             )
             Spacer(Modifier.width(8.dp))
