@@ -13,6 +13,13 @@ internal data class ChatCompletionRequest(
     val model: String,
     val messages: List<RequestMessage>,
     val stream: Boolean = true,
+    val thinking: ThinkingConfig? = null,
+)
+
+/** 思考模式开关（DeepSeek V4：type=enabled 时流式响应会先流出 reasoning_content）。 */
+@Serializable
+internal data class ThinkingConfig(
+    val type: String = "enabled",
 )
 
 @Serializable
@@ -35,6 +42,7 @@ internal data class Choice(
 @Serializable
 internal data class Delta(
     val content: String? = null,
+    @SerialName("reasoning_content") val reasoningContent: String? = null,
 )
 
 /** ChatMessage.Role → OpenAI-compatible 协议里的 role 字符串。 */

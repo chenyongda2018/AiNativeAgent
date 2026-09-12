@@ -32,13 +32,13 @@ fun ChatScreen(
     onCancel: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
-    modelName: String = "DeepSeek R1",
+    onSelectModel: (String) -> Unit = {},
     onNewChat: (() -> Unit)? = null,
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var showModelSheet by remember { mutableStateOf(false) }
-    var selectedModel by remember { mutableStateOf(modelName) }
+    val selectedModelName = ChatModels.nameOf(state.modelId)
     val markdownCache = remember { MarkdownRenderCache() }
 
     ModalNavigationDrawer(
@@ -52,7 +52,7 @@ fun ChatScreen(
     ) {
         Column(modifier = modifier.fillMaxSize().imePadding()) {
             ChatTopBar(
-                modelName = selectedModel,
+                modelName = selectedModelName,
                 onOpenSidebar = { scope.launch { drawerState.open() } },
                 onOpenModelSelector = { showModelSheet = true },
                 onNewChat = { onNewChat?.invoke() },
@@ -62,7 +62,7 @@ fun ChatScreen(
 
             if (isEmpty) {
                 ChatEmptyState(
-                    modelName = selectedModel,
+                    modelName = selectedModelName,
                     onSelectPrompt = onSend,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
@@ -89,8 +89,8 @@ fun ChatScreen(
 
     if (showModelSheet) {
         ModelSelectorSheet(
-            selectedModelId = selectedModel,
-            onSelectModel = { selectedModel = it },
+            selectedModelId = state.modelId,
+            onSelectModel = onSelectModel,
             onDismiss = { showModelSheet = false },
         )
     }

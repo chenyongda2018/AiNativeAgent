@@ -1,6 +1,7 @@
 package com.yongda.ainativeagent.llm.deepseek
 
 import com.yongda.ainativeagent.llm.core.ChatMessage
+import com.yongda.ainativeagent.llm.core.LlmChunk
 import com.yongda.ainativeagent.llm.core.LlmConfig
 import com.yongda.ainativeagent.llm.core.LlmProvider
 import com.yongda.ainativeagent.llm.net.LlmJson
@@ -17,9 +18,11 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.mapNotNull
 
 /**
- * DeepSeek 云端 [LlmProvider] 实现（OpenAI-compatible，SSE 流式）。
+ * DeepSeek 云端 [LlmProvider] 实现（OpenAI-compatible，SSE 流式）。默认开启思考模式：
+ * 流式响应先流出 reasoning_content（→ [LlmChunk.Reasoning]），再流出 content（→ [LlmChunk.Content]）。
  *
  * @param client 可注入自定义 HttpClient（测试 / 复用连接池）；默认用 [createLlmHttpClient]。
  */
@@ -30,11 +33,16 @@ class DeepSeekProvider(
 
     override val name: String = "deepseek"
 
-    override fun streamChat(messages: List<ChatMessage>): Flow<String> = flow {
+    /** 纯文本回答流：复用 [streamChatDetailed]，仅保留正式回答部分。 */
+    override fun streamChat(messages: List<ChatMessage>): Flow<String> =
+        streamChatDetailed(messages).mapNotNull { (it as? LlmChunk.Content)?.text }
+
+    override fun streamChatDetailed(messages: List<ChatMessage>): Flow<LlmChunk> = flow {
         val request = ChatCompletionRequest(
             model = config.model,
             messages = messages.map { RequestMessage(it.role.toWire(), it.content) },
             stream = true,
+            thinking = ThinkingConfig(type = "enabled"),
         )
         client.preparePost("${config.baseUrl.trimEnd('/')}/chat/completions") {
             header(HttpHeaders.Authorization, "Bearer ${config.apiKey}")
@@ -46,15 +54,18 @@ class DeepSeekProvider(
                 error("DeepSeek 请求失败: ${response.status} ${response.bodyAsText()}")
             }
             response.collectSseData { data ->
-                val chunk = LlmJson.decodeFromString<ChatCompletionChunk>(data)
-                chunk.choices.firstOrNull()?.delta?.content?.let { emit(it) }
+                val delta = LlmJson.decodeFromString<ChatCompletionChunk>(data).choices.firstOrNull()?.delta
+                delta?.reasoningContent?.takeIf { it.isNotEmpty() }?.let { emit(LlmChunk.Reasoning(it)) }
+                delta?.content?.takeIf { it.isNotEmpty() }?.let { emit(LlmChunk.Content(it)) }
             }
         }
     }
 
     companion object {
         const val DEFAULT_BASE_URL: String = "https://api.deepseek.com"
-        const val DEFAULT_MODEL: String = "deepseek-chat"
+
+        /** 账号 /models 端点当前返回的推荐模型（截至 2026-09；旧的 deepseek-chat 已下线）。 */
+        const val DEFAULT_MODEL: String = "deepseek-flash"
 
         /** 便捷构造：只给 apiKey，baseUrl / model 用默认值。 */
         fun withApiKey(

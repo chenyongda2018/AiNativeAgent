@@ -24,13 +24,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yongda.ainativeagent.chat.ui.ChatModel
+import com.yongda.ainativeagent.chat.ui.ChatModels
 import com.yongda.ainativeagent.chat.ui.theme.ChatTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,7 +57,7 @@ internal fun ModelSelectorSheet(
             Spacer(Modifier.height(16.dp))
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(stubModels, key = { it.id }) { model ->
+                items(ChatModels.all, key = { it.id }) { model ->
                     ModelCard(
                         model = model,
                         isSelected = model.id == selectedModelId,
@@ -84,7 +85,7 @@ internal fun ModelSelectorSheet(
 
 @Composable
 private fun ModelCard(
-    model: StubModel,
+    model: ChatModel,
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
@@ -150,20 +151,3 @@ private fun ModelCard(
         }
     }
 }
-
-@Immutable
-private data class StubModel(
-    val id: String,
-    val name: String,
-    val badge: String?,
-    val tagline: String,
-    val contextLimit: String,
-    val thinkingSupported: Boolean,
-)
-
-private val stubModels = listOf(
-    StubModel("deepseek-r1", "DeepSeek R1", "推荐", "深度推理能力强，支持复杂思考链", "64K", true),
-    StubModel("deepseek-v3", "DeepSeek V3", null, "快速响应，适合日常对话", "128K", false),
-    StubModel("deepseek-coder", "DeepSeek Coder", "代码", "专注于代码生成与调试", "64K", false),
-    StubModel("local-mnn", "MNN 本地模型", "端侧", "设备端推理，无需网络连接", "4K", false),
-)

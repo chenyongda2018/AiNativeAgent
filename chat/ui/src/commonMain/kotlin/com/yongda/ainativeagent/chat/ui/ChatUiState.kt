@@ -28,12 +28,14 @@ data class ChatMessageUi(
  * 反复复制整个历史列表，也让 Compose 可以跳过没有变化的历史气泡。
  *
  * @param error 非空表示上一次请求失败，UI 展示错误条与"重试"。
+ * @param modelId 当前选中的模型 id（即 API `model` 名），驱动顶栏 pill / 空态展示，由 VM 维护。
  */
 @Immutable
 data class ChatUiState(
     val messages: List<ChatMessageUi> = emptyList(),
     val streamingMessage: ChatMessageUi? = null,
     val error: String? = null,
+    val modelId: String = ChatModels.default.id,
 ) {
     val isStreaming: Boolean get() = streamingMessage != null
 }

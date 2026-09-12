@@ -10,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.yongda.ainativeagent.chat.ui.ChatModels
 import com.yongda.ainativeagent.chat.ui.ChatScreen
 import com.yongda.ainativeagent.chat.ui.theme.ChatTheme
 import com.yongda.ainativeagent.chat.vm.ChatViewModel
@@ -27,13 +28,19 @@ fun App(apiKey: String) {
             modifier = Modifier.fillMaxSize().systemBarsPadding().displayCutoutPadding(),
             color = ChatTheme.colors.background,
         ) {
-            val vm: ChatViewModel = viewModel { ChatViewModel(DeepSeekProvider.withApiKey(apiKey)) }
+            val vm: ChatViewModel = viewModel {
+                ChatViewModel(
+                    providerFactory = { modelId -> DeepSeekProvider.withApiKey(apiKey, model = modelId) },
+                    initialModelId = ChatModels.default.id,
+                )
+            }
             val state by vm.state.collectAsStateWithLifecycle()
             ChatScreen(
                 state = state,
                 onSend = vm::send,
                 onCancel = vm::cancel,
                 onRetry = vm::retry,
+                onSelectModel = vm::selectModel,
             )
         }
     }

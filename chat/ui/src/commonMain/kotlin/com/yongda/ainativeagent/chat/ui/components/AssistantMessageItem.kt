@@ -77,6 +77,8 @@ internal fun AssistantMessageItem(
             if (msg.thinking != null) {
                 ThinkingSection(
                     thinking = msg.thinking,
+                    // 思考进行中（仍在流式且正式回答尚未开始）默认展开，回答一开始自动收起。
+                    defaultExpanded = msg.streaming && msg.content.isEmpty(),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 )
             }

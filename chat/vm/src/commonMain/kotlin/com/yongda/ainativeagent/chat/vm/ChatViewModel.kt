@@ -3,9 +3,12 @@ package com.yongda.ainativeagent.chat.vm
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yongda.ainativeagent.chat.ui.ChatMessageUi
+import com.yongda.ainativeagent.chat.ui.ChatModels
 import com.yongda.ainativeagent.chat.ui.ChatRole
 import com.yongda.ainativeagent.chat.ui.ChatUiState
+import com.yongda.ainativeagent.chat.ui.ThinkingContent
 import com.yongda.ainativeagent.llm.core.ChatMessage
+import com.yongda.ainativeagent.llm.core.LlmChunk
 import com.yongda.ainativeagent.llm.core.LlmProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -14,14 +17,17 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /**
  * 聊天 ViewModel：把抽象 [LlmProvider] 的流式输出编排成 [ChatUiState]。
@@ -34,18 +40,41 @@ import kotlinx.coroutines.launch
  *  - 重试：[retry] 丢弃失败的助手占位并用当前历史重发。
  *
  * 只依赖抽象 provider，与 DeepSeek/OpenAI/本地模型无关，可独立复用。
+ *
+ * @param providerFactory 按 modelId 产出对应的 [LlmProvider]（id 即 API `model` 名）。首次用到某模型时
+ *   构造并缓存，切换模型不重建 ViewModel、聊天历史得以保留。
+ * @param initialModelId 初始选中的模型 id，写入 [ChatUiState.modelId] 供 UI 展示。
  */
 class ChatViewModel(
-    private val provider: LlmProvider,
+    private val providerFactory: (modelId: String) -> LlmProvider,
+    initialModelId: String,
     private val systemPrompt: String = DEFAULT_SYSTEM_PROMPT,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(ChatUiState())
+    /** 单一固定 provider 的便捷构造（测试 / 不需要切换模型的场景）。 */
+    constructor(
+        provider: LlmProvider,
+        systemPrompt: String = DEFAULT_SYSTEM_PROMPT,
+        dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    ) : this({ provider }, ChatModels.default.id, systemPrompt, dispatcher)
+
+    private val _state = MutableStateFlow(ChatUiState(modelId = initialModelId))
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
+
+    private var currentModelId = initialModelId
+    private val providerCache = mutableMapOf<String, LlmProvider>()
+    private fun provider(): LlmProvider = providerCache.getOrPut(currentModelId) { providerFactory(currentModelId) }
 
     private var streamJob: Job? = null
     private var nextId = 0L
+
+    /** 切换模型：流式进行中忽略。仅改变后续请求所用模型，不影响已有历史。 */
+    fun selectModel(id: String) {
+        if (id == currentModelId || _state.value.isStreaming) return
+        currentModelId = id
+        _state.update { it.copy(modelId = id) }
+    }
 
     /** 发送一条用户消息并开始流式生成。流式进行中忽略。 */
     fun send(text: String) {
@@ -80,7 +109,13 @@ class ChatViewModel(
         val assistantId = nextId++
         _state.update {
             it.copy(
-                streamingMessage = ChatMessageUi(assistantId, ChatRole.ASSISTANT, "", streaming = true),
+                streamingMessage = ChatMessageUi(
+                    assistantId,
+                    ChatRole.ASSISTANT,
+                    "",
+                    streaming = true,
+                    modelName = ChatModels.nameOf(currentModelId),
+                ),
                 error = null,
             )
         }
@@ -96,12 +131,35 @@ class ChatViewModel(
                     messages.forEach { add(ChatMessage(it.role.toCore(), it.content)) }
                 }
                 coroutineScope {
-                    provider.streamChat(history)
-                        .onEach(receivedContent::append)
-                        .paceTextForUi()
-                        .collect { content ->
-                            updateStreamingAssistant(assistantId, content)
+                    // 正式回答走显示节奏器（打字机效果）；思考过程实时累积到 thinking，不参与节奏控制。
+                    val contentDeltas = Channel<String>(Channel.BUFFERED)
+                    val pacer = launch {
+                        contentDeltas.consumeAsFlow()
+                            .paceTextForUi()
+                            .collect { snapshot -> updateStreamingContent(assistantId, snapshot) }
+                    }
+                    val reasoning = StringBuilder()
+                    var reasoningStart: TimeMark? = null
+                    try {
+                        provider().streamChatDetailed(history).collect { chunk ->
+                            when (chunk) {
+                                is LlmChunk.Reasoning -> {
+                                    val start = reasoningStart
+                                        ?: TimeSource.Monotonic.markNow().also { reasoningStart = it }
+                                    reasoning.append(chunk.text)
+                                    val seconds = start.elapsedNow().inWholeMilliseconds / 100 / 10f
+                                    updateStreamingThinking(assistantId, reasoning.toString(), seconds)
+                                }
+                                is LlmChunk.Content -> {
+                                    receivedContent.append(chunk.text)
+                                    contentDeltas.send(chunk.text)
+                                }
+                            }
                         }
+                    } finally {
+                        contentDeltas.close()
+                    }
+                    pacer.join()
                 }
                 finishAssistant(assistantId, receivedContent.toString())
             } catch (e: CancellationException) {
@@ -119,11 +177,22 @@ class ChatViewModel(
         }
     }
 
-    private fun updateStreamingAssistant(id: Long, content: String) {
+    private fun updateStreamingContent(id: Long, content: String) {
         _state.update { st ->
             val streaming = st.streamingMessage
             if (streaming?.id == id) {
                 st.copy(streamingMessage = streaming.copy(content = content))
+            } else {
+                st
+            }
+        }
+    }
+
+    private fun updateStreamingThinking(id: Long, text: String, durationSeconds: Float) {
+        _state.update { st ->
+            val streaming = st.streamingMessage
+            if (streaming?.id == id) {
+                st.copy(streamingMessage = streaming.copy(thinking = ThinkingContent(durationSeconds, text)))
             } else {
                 st
             }

@@ -36,8 +36,10 @@ import com.yongda.ainativeagent.chat.ui.theme.ChatTheme
 internal fun ThinkingSection(
     thinking: ThinkingContent,
     modifier: Modifier = Modifier,
+    defaultExpanded: Boolean = false,
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    // 以 defaultExpanded 为初值：思考进行中自动展开，回答开始时（值翻转）自动收起，其间仍可手动切换。
+    var expanded by remember(defaultExpanded) { mutableStateOf(defaultExpanded) }
 
     Surface(
         shape = RoundedCornerShape(12.dp),
