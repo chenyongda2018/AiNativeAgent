@@ -43,7 +43,7 @@ internal fun ThinkingSection(
 
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = ChatTheme.colors.brandContainer,
+        color = ChatTheme.colors.amberContainer,
         modifier = modifier.fillMaxWidth(),
     ) {
         Column {
@@ -58,20 +58,20 @@ internal fun ThinkingSection(
                     Icons.Default.Psychology,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = ChatTheme.colors.brand,
+                    tint = ChatTheme.colors.amber,
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = "思考过程 (${thinking.durationSeconds}s)",
                     fontSize = 12.sp,
-                    color = ChatTheme.colors.brand,
+                    color = ChatTheme.colors.amber,
                 )
                 Spacer(Modifier.weight(1f))
                 Icon(
                     if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = if (expanded) "收起" else "展开",
                     modifier = Modifier.size(16.dp),
-                    tint = ChatTheme.colors.brand,
+                    tint = ChatTheme.colors.amber,
                 )
             }
 

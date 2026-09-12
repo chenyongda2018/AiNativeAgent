@@ -48,7 +48,9 @@ internal fun ChatEmptyState(
             modifier = Modifier
                 .size(56.dp)
                 .background(
-                    Brush.linearGradient(listOf(Color(0xFF4F46E5), Color(0xFF8B5CF6))),
+                    Brush.linearGradient(
+                        listOf(ChatTheme.colors.brandGradientStart, ChatTheme.colors.brandGradientEnd),
+                    ),
                     RoundedCornerShape(16.dp),
                 ),
             contentAlignment = Alignment.Center,

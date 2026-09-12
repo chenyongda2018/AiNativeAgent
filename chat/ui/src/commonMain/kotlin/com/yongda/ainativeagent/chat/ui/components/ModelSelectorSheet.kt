@@ -125,9 +125,9 @@ private fun ModelCard(
                     Text("上下文: ${model.contextLimit}", fontSize = 11.sp, color = ChatTheme.colors.textSecondary, fontFamily = FontFamily.Monospace)
                     if (model.thinkingSupported) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Psychology, contentDescription = null, modifier = Modifier.size(12.dp), tint = ChatTheme.colors.brand)
+                            Icon(Icons.Default.Psychology, contentDescription = null, modifier = Modifier.size(12.dp), tint = ChatTheme.colors.amber)
                             Spacer(Modifier.width(2.dp))
-                            Text("深度思考", fontSize = 11.sp, color = ChatTheme.colors.brand)
+                            Text("深度思考", fontSize = 11.sp, color = ChatTheme.colors.amber)
                         }
                     }
                 }

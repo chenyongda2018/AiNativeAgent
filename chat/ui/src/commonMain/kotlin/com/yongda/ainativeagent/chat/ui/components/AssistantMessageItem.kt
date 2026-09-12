@@ -48,7 +48,9 @@ internal fun AssistantMessageItem(
             modifier = Modifier
                 .size(28.dp)
                 .background(
-                    brush = Brush.linearGradient(listOf(Color(0xFF4F46E5), Color(0xFF8B5CF6))),
+                    brush = Brush.linearGradient(
+                        listOf(ChatTheme.colors.brandGradientStart, ChatTheme.colors.brandGradientEnd),
+                    ),
                     shape = RoundedCornerShape(8.dp),
                 ),
             contentAlignment = Alignment.Center,
