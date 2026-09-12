@@ -5,18 +5,20 @@ import androidx.compose.runtime.Immutable
 /** UI 层的消息角色（与网络层解耦，仅区分气泡展示）。 */
 enum class ChatRole { USER, ASSISTANT }
 
-/**
- * 一条聊天消息的 UI 模型。
- *
- * @param id 稳定 id，用于 LazyColumn key。
- * @param streaming 该助手消息是否正在流式生成中（用于展示"正在输入"等）。
- */
+@Immutable
+data class ThinkingContent(
+    val durationSeconds: Float,
+    val text: String,
+)
+
 @Immutable
 data class ChatMessageUi(
     val id: Long,
     val role: ChatRole,
     val content: String,
     val streaming: Boolean = false,
+    val thinking: ThinkingContent? = null,
+    val modelName: String? = null,
 )
 
 /**

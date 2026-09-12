@@ -1,9 +1,9 @@
 package com.yongda.ainativeagent
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.yongda.ainativeagent.chat.ui.ChatScreen
+import com.yongda.ainativeagent.chat.ui.theme.ChatTheme
 import com.yongda.ainativeagent.chat.vm.ChatViewModel
 import com.yongda.ainativeagent.llm.deepseek.DeepSeekProvider
 
@@ -21,10 +22,10 @@ import com.yongda.ainativeagent.llm.deepseek.DeepSeekProvider
  */
 @Composable
 fun App(apiKey: String) {
-    MaterialTheme {
+    ChatTheme(darkTheme = isSystemInDarkTheme()) {
         Surface(
             modifier = Modifier.fillMaxSize().systemBarsPadding().displayCutoutPadding(),
-            color = MaterialTheme.colorScheme.background,
+            color = ChatTheme.colors.background,
         ) {
             val vm: ChatViewModel = viewModel { ChatViewModel(DeepSeekProvider.withApiKey(apiKey)) }
             val state by vm.state.collectAsStateWithLifecycle()

@@ -24,6 +24,7 @@ kotlin {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
+            implementation(compose.materialIconsExtended)
             implementation(libs.compose.ui)
             implementation(libs.kotlinx.coroutines.core)
             // LLM 输出为 Markdown：用 mikepenz 的流式友好渲染器
