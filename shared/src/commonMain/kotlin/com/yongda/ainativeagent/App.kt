@@ -2,8 +2,6 @@ package com.yongda.ainativeagent
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.displayCutoutPadding
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,8 +22,9 @@ import com.yongda.ainativeagent.llm.deepseek.DeepSeekProvider
 @Composable
 fun App(apiKey: String) {
     ChatTheme(darkTheme = isSystemInDarkTheme()) {
+        // 背景填充整个屏幕（含状态栏/导航栏区域），系统栏边距由内部 ChatTopBar / InputBar 各自处理。
         Surface(
-            modifier = Modifier.fillMaxSize().systemBarsPadding().displayCutoutPadding(),
+            modifier = Modifier.fillMaxSize(),
             color = ChatTheme.colors.background,
         ) {
             val vm: ChatViewModel = viewModel {

@@ -3,7 +3,6 @@ package com.yongda.ainativeagent.chat.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalNavigationDrawer
@@ -50,11 +49,11 @@ fun ChatScreen(
             )
         },
     ) {
-        Column(modifier = modifier.fillMaxSize().imePadding()) {
+        // IME + 导航栏边距由底部 InputBar 内部处理（navigationBarsPadding().imePadding()），
+        // 此处不再叠加 imePadding，避免键盘弹出时重复计入导航栏高度。
+        Column(modifier = modifier.fillMaxSize()) {
             ChatTopBar(
-                modelName = selectedModelName,
                 onOpenSidebar = { scope.launch { drawerState.open() } },
-                onOpenModelSelector = { showModelSheet = true },
                 onNewChat = { onNewChat?.invoke() },
             )
 
@@ -81,6 +80,8 @@ fun ChatScreen(
 
             InputBar(
                 isStreaming = state.isStreaming,
+                modelName = selectedModelName,
+                onOpenModelSelector = { showModelSheet = true },
                 onSend = onSend,
                 onCancel = onCancel,
             )
