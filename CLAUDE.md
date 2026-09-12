@@ -43,6 +43,20 @@ Package root everywhere: `com.yongda.ainativeagent`. Kotlin source lives under `
 - **模块化**：聊天 UI 做成边界清晰、可独立发布的模块（纯 UI 组件 `ChatScreen(state, onSend, onCancel, onRetry)`，不含业务/网络依赖）；ViewModel 依赖抽象 `LlmProvider`，负责满足验收基准（多轮历史 · 流式追加 · 异常处理 · 中断生成 · 重试）。
 - 一律用 **Compose Multiplatform**（`org.jetbrains.compose.*`），不用 androidx.compose。
 
+## UI 设计规范（Design System，中文）
+
+移动端 AI 聊天 UI 的设计规范已定，后续 UI 开发一律遵循。**色值以 `chat/ui/src/commonMain/.../theme/ChatColors.kt` 为唯一事实来源**（本节只记语义与关键值，勿两处维护）。
+
+- **设计哲学**：暖石 + Terracotta 温润色温（纸质阅读感），**拒绝科技蓝/霓虹渐变**；单手拇指优先——模型切换 / 附件 / 语音 / 发送全部下沉到底部输入坞，不放顶栏；信息高密度，聊天视口水平边距约 10dp。
+- **色彩令牌（语义）**：
+  - 核心品牌 = **Terracotta** `#CC785C`（暗 `#E08A6F`）→ 星芒 Logo、选中态、主高亮、推理进度微光、输入光标。`ChatTheme.colors.brand`。
+  - 次级强调 = **琥珀** `#D97706`（暗 `#FBBF24`）→ **仅**深度思考标签 / 代码关键字高亮。`ChatTheme.colors.amber`（勿用 brand 顶替）。
+  - 常态功能键背景 = 近黑 `#0F172A`（暗 zinc-800）→ 发送箭头键；停止键用 rose `error`；在线点用 emerald `success`。
+  - 文本走**暖石**：主文本 stone-900 `#1C1917`（暗 zinc-100 `#F4F4F5`）、次文本 stone-500 `#78716C`（暗 zinc-400）。深色中性色统一走 **zinc**（bg `#18181B` / 卡片 `#27272A`），输入坞卡片暖石 `#F5F4EF`。
+- **圆角**：底部输入大卡 24dp；功能圆钮（+/语音/发送）正圆 32–36dp，热区≥44dp；模型胶囊全圆角；用户气泡 `2xl + 右上直角`（rounded-tr 小）；抽屉/底部面板顶部 32dp。
+- **字号层次**：AI 正文 14.5sp / 行高 1.65；用户气泡 14.5sp Medium；输入 15sp（自适应限高 120dp）；模型胶囊 12sp；思考折叠 / 代码块 Mono 12sp。
+- **尚未实现（路线图，勿当既有规则）**：顶栏灵动岛状态栏、主题手动切换（Sun/Moon）、实时语音模式、空态问候衬线字体（Playfair）。这些是目标形态，实现前不要据此约束现有代码。
+
 ## Target architecture (the goal, mostly not yet built)
 
 ```
