@@ -59,7 +59,15 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // 让 debug 与 release 共存：debug 包名加 .debug 后缀，独立成另一个 app 槽。
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
+            // 个人/学习项目：复用 AGP 自带的 debug 密钥签名，使 release 包可直接安装。
+            // 注意：debug 密钥仅供本地，不能用于正式上架应用市场。
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
