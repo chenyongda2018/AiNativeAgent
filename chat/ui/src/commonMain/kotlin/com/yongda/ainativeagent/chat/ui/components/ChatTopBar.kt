@@ -1,74 +1,80 @@
 package com.yongda.ainativeagent.chat.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.yongda.ainativeagent.chat.ui.theme.ChatTactileTokens
 import com.yongda.ainativeagent.chat.ui.theme.ChatTheme
 
-/**
- * 顶栏：左侧侧边栏按钮 + 右侧新建对话按钮。
- * 模型选择 pill 已迁移到底部输入坞（InputBar），此处保持简洁、中间留白。
- */
 @Composable
 internal fun ChatTopBar(
     onOpenSidebar: () -> Unit,
     onNewChat: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val borderColor = ChatTheme.colors.border
-
-    Surface(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .drawBehind {
-                drawLine(
-                    color = borderColor,
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 1.dp.toPx(),
-                )
-            },
-        color = ChatTheme.colors.surface,
+            .statusBarsPadding()
+            .height(52.dp)
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            // Surface 背景绘制到状态栏之下，内容用 statusBarsPadding 推到状态栏下方。
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .height(56.dp)
-                .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            IconButton(
-                onClick = onOpenSidebar,
-                colors = IconButtonDefaults.iconButtonColors(contentColor = ChatTheme.colors.textPrimary),
-            ) {
-                Icon(Icons.Default.Menu, contentDescription = "打开侧边栏", modifier = Modifier.size(22.dp))
-            }
+        ToolbarControl(
+            icon = Icons.Default.Menu,
+            contentDescription = "打开侧边栏",
+            onClick = onOpenSidebar,
+        )
+        androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+        ToolbarControl(
+            icon = Icons.Default.Add,
+            contentDescription = "新建对话",
+            onClick = onNewChat,
+        )
+    }
+}
 
-            IconButton(
-                onClick = onNewChat,
-                colors = IconButtonDefaults.iconButtonColors(contentColor = ChatTheme.colors.textPrimary),
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "新建对话", modifier = Modifier.size(22.dp))
+@Composable
+private fun ToolbarControl(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier.size(ChatTactileTokens.minimumTouchTarget),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier.size(ChatTactileTokens.toolbarControl),
+            shape = RoundedCornerShape(13.dp),
+            color = ChatTheme.colors.surface,
+            border = BorderStroke(1.dp, ChatTheme.colors.borderSubtle),
+            shadowElevation = ChatTactileTokens.elevationRaised,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = contentDescription,
+                    tint = ChatTheme.colors.textPrimary,
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
     }

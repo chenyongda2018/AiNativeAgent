@@ -1,6 +1,6 @@
 package com.yongda.ainativeagent.chat.ui.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.yongda.ainativeagent.chat.ui.ChatRole
 import com.yongda.ainativeagent.chat.ui.ChatUiState
 import com.yongda.ainativeagent.chat.ui.MarkdownRenderCache
+import com.yongda.ainativeagent.chat.ui.theme.ChatTactileTokens
 import com.yongda.ainativeagent.chat.ui.theme.ChatTheme
 import kotlinx.coroutines.launch
 
@@ -44,31 +45,27 @@ internal fun MessageList(
     val scope = rememberCoroutineScope()
     val totalMessageCount = state.messages.size + if (state.streamingMessage == null) 0 else 1
     val lastMessageId = state.streamingMessage?.id ?: state.messages.lastOrNull()?.id
-    val showScrollToLatest by remember {
-        derivedStateOf { listState.canScrollForward }
-    }
+    val showScrollToLatest by remember { derivedStateOf { listState.canScrollForward } }
 
     LaunchedEffect(lastMessageId) {
-        if (totalMessageCount > 0) {
-            listState.animateScrollToItem(totalMessageCount - 1)
-        }
+        if (totalMessageCount > 0) listState.animateScrollToItem(totalMessageCount - 1)
     }
 
     Box(modifier = modifier) {
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(start = 10.dp, top = 14.dp, end = 10.dp, bottom = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             items(
                 items = state.messages,
                 key = { it.id },
                 contentType = { it.role },
-            ) { msg ->
-                when (msg.role) {
-                    ChatRole.USER -> UserMessageItem(msg)
-                    ChatRole.ASSISTANT -> AssistantMessageItem(msg, markdownCache, onRetry)
+            ) { message ->
+                when (message.role) {
+                    ChatRole.USER -> UserMessageItem(message)
+                    ChatRole.ASSISTANT -> AssistantMessageItem(message, markdownCache, onRetry)
                 }
             }
             state.streamingMessage?.let { streaming ->
@@ -83,35 +80,37 @@ internal fun MessageList(
 
         if (showScrollToLatest) {
             Surface(
+                onClick = {
+                    scope.launch {
+                        val lastIndex = listState.layoutInfo.totalItemsCount - 1
+                        if (lastIndex < 0) return@launch
+                        if (listState.layoutInfo.visibleItemsInfo.none { it.index == lastIndex }) {
+                            listState.animateScrollToItem(lastIndex)
+                        }
+                        val layout = listState.layoutInfo
+                        val lastItem = layout.visibleItemsInfo.lastOrNull()
+                            ?.takeIf { it.index == lastIndex } ?: return@launch
+                        val remaining = lastItem.offset + lastItem.size +
+                            layout.afterContentPadding - layout.viewportEndOffset
+                        if (remaining > 0) listState.animateScrollBy(remaining.toFloat())
+                    }
+                },
                 shape = CircleShape,
-                color = ChatTheme.colors.surface,
-                shadowElevation = 4.dp,
+                color = ChatTheme.colors.surfaceRaised,
+                border = BorderStroke(1.dp, ChatTheme.colors.borderInteractive),
+                shadowElevation = ChatTactileTokens.elevationRaised,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 8.dp)
-                    .size(36.dp)
-                    .semantics { contentDescription = "滚动到最新消息" }
-                    .clickable {
-                        scope.launch {
-                            val lastIndex = listState.layoutInfo.totalItemsCount - 1
-                            if (lastIndex < 0) return@launch
-                            if (listState.layoutInfo.visibleItemsInfo.none { it.index == lastIndex }) {
-                                listState.animateScrollToItem(lastIndex)
-                            }
-                            val layout = listState.layoutInfo
-                            val lastItem = layout.visibleItemsInfo.lastOrNull()
-                                ?.takeIf { it.index == lastIndex } ?: return@launch
-                            val remaining = lastItem.offset + lastItem.size +
-                                layout.afterContentPadding - layout.viewportEndOffset
-                            if (remaining > 0) listState.animateScrollBy(remaining.toFloat())
-                        }
-                    },
+                    .size(ChatTactileTokens.minimumTouchTarget)
+                    .semantics { contentDescription = "滚动到最新消息" },
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
                         tint = ChatTheme.colors.textSecondary,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }

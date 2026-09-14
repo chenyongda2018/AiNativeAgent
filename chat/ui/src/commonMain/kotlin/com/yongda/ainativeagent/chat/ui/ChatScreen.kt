@@ -1,5 +1,6 @@
 package com.yongda.ainativeagent.chat.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +22,7 @@ import com.yongda.ainativeagent.chat.ui.components.InputBar
 import com.yongda.ainativeagent.chat.ui.components.MessageList
 import com.yongda.ainativeagent.chat.ui.components.ModelSelectorSheet
 import com.yongda.ainativeagent.chat.ui.components.SidebarDrawerContent
+import com.yongda.ainativeagent.chat.ui.theme.ChatTheme
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,17 +51,17 @@ fun ChatScreen(
             )
         },
     ) {
-        // IME + 导航栏边距由底部 InputBar 内部处理（navigationBarsPadding().imePadding()），
-        // 此处不再叠加 imePadding，避免键盘弹出时重复计入导航栏高度。
-        Column(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(ChatTheme.colors.background),
+        ) {
             ChatTopBar(
                 onOpenSidebar = { scope.launch { drawerState.open() } },
                 onNewChat = { onNewChat?.invoke() },
             )
 
-            val isEmpty = state.messages.isEmpty() && !state.isStreaming
-
-            if (isEmpty) {
+            if (state.messages.isEmpty() && !state.isStreaming) {
                 ChatEmptyState(
                     modelName = selectedModelName,
                     onSelectPrompt = onSend,

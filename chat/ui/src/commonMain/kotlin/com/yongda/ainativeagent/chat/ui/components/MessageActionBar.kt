@@ -1,22 +1,27 @@
 package com.yongda.ainativeagent.chat.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
@@ -34,46 +39,54 @@ internal fun MessageActionBar(
 
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        val colors = IconButtonDefaults.iconButtonColors(
-            contentColor = ChatTheme.colors.textSecondary,
-        )
-
-        IconButton(
+        MessageAction(
+            icon = Icons.Default.ContentCopy,
+            contentDescription = "复制",
             onClick = { clipboardManager.setText(AnnotatedString(content)) },
-            modifier = Modifier.size(32.dp),
-            colors = colors,
-        ) {
-            Icon(Icons.Default.ContentCopy, contentDescription = "复制", modifier = Modifier.size(16.dp))
-        }
-
-        IconButton(
+        )
+        MessageAction(
+            icon = Icons.Default.ThumbUp,
+            contentDescription = "点赞",
+            tint = if (feedback == Feedback.LIKE) ChatTheme.colors.brand else ChatTheme.colors.textTertiary,
             onClick = { feedback = if (feedback == Feedback.LIKE) null else Feedback.LIKE },
-            modifier = Modifier.size(32.dp),
-            colors = IconButtonDefaults.iconButtonColors(
-                contentColor = if (feedback == Feedback.LIKE) ChatTheme.colors.brand else ChatTheme.colors.textSecondary,
-            ),
-        ) {
-            Icon(Icons.Default.ThumbUp, contentDescription = "点赞", modifier = Modifier.size(16.dp))
-        }
-
-        IconButton(
+        )
+        MessageAction(
+            icon = Icons.Default.ThumbDown,
+            contentDescription = "点踩",
+            tint = if (feedback == Feedback.DISLIKE) ChatTheme.colors.error else ChatTheme.colors.textTertiary,
             onClick = { feedback = if (feedback == Feedback.DISLIKE) null else Feedback.DISLIKE },
-            modifier = Modifier.size(32.dp),
-            colors = IconButtonDefaults.iconButtonColors(
-                contentColor = if (feedback == Feedback.DISLIKE) ChatTheme.colors.error else ChatTheme.colors.textSecondary,
-            ),
-        ) {
-            Icon(Icons.Default.ThumbDown, contentDescription = "点踩", modifier = Modifier.size(16.dp))
-        }
-
-        IconButton(
+        )
+        MessageAction(
+            icon = Icons.Default.Refresh,
+            contentDescription = "重新生成",
             onClick = onRetry,
-            modifier = Modifier.size(32.dp),
-            colors = colors,
-        ) {
-            Icon(Icons.Default.Refresh, contentDescription = "重新生成", modifier = Modifier.size(16.dp))
+        )
+    }
+}
+
+@Composable
+private fun MessageAction(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    tint: Color = ChatTheme.colors.textTertiary,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(32.dp),
+        shape = RoundedCornerShape(9.dp),
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, ChatTheme.colors.borderSubtle),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(15.dp),
+                tint = tint,
+            )
         }
     }
 }

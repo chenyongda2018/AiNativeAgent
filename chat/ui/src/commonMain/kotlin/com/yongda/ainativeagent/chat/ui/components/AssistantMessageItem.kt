@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,18 +19,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yongda.ainativeagent.chat.ui.ChatMessageUi
 import com.yongda.ainativeagent.chat.ui.MarkdownRenderCache
+import com.yongda.ainativeagent.chat.ui.theme.ChatTactileTokens
 import com.yongda.ainativeagent.chat.ui.theme.ChatTheme
 
 @Composable
@@ -41,75 +43,60 @@ internal fun AssistantMessageItem(
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(9.dp),
     ) {
-        // Avatar
-        Box(
-            modifier = Modifier
-                .size(28.dp)
-                .background(
-                    brush = Brush.linearGradient(
-                        listOf(ChatTheme.colors.brandGradientStart, ChatTheme.colors.brandGradientEnd),
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                ),
-            contentAlignment = Alignment.Center,
+        Surface(
+            modifier = Modifier.size(26.dp),
+            shape = RoundedCornerShape(ChatTactileTokens.radiusSmall),
+            color = ChatTheme.colors.surface,
+            border = BorderStroke(1.dp, ChatTheme.colors.borderSubtle),
         ) {
-            Icon(
-                Icons.Default.AutoAwesome,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = Color.White,
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = ChatTheme.colors.brand,
+                )
+            }
         }
 
-        // Content
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            // Model name label
             Text(
                 text = msg.modelName ?: "AI",
                 fontSize = 12.sp,
-                color = ChatTheme.colors.textSecondary,
+                fontWeight = FontWeight.Medium,
+                color = ChatTheme.colors.textPrimary,
             )
 
-            // Thinking section
-            if (msg.thinking != null) {
+            msg.thinking?.let { thinking ->
                 ThinkingSection(
-                    thinking = msg.thinking,
-                    // 思考进行中（仍在流式且正式回答尚未开始）默认展开，回答一开始自动收起。
+                    thinking = thinking,
                     defaultExpanded = msg.streaming && msg.content.isEmpty(),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 
-            // Message body
             when {
-                msg.content.isEmpty() && msg.streaming -> {
-                    Text(
-                        text = "▍",
-                        fontSize = 14.5.sp,
-                        color = ChatTheme.colors.textPrimary,
-                    )
-                }
-                msg.streaming -> {
-                    StreamingText(content = msg.content)
-                }
-                else -> {
-                    CachedMarkdown(msg = msg, cache = markdownCache)
-                }
+                msg.content.isEmpty() && msg.streaming -> Text(
+                    text = "▍",
+                    fontSize = 14.5.sp,
+                    color = ChatTheme.colors.brand,
+                )
+                msg.streaming -> StreamingText(content = msg.content)
+                else -> CachedMarkdown(msg = msg, cache = markdownCache)
             }
 
-            // Streaming indicator
-            if (msg.streaming && msg.content.isNotEmpty()) {
-                StreamingIndicator()
-            }
-
-            // Action bar
+            if (msg.streaming && msg.content.isNotEmpty()) StreamingIndicator()
             if (!msg.streaming) {
-                MessageActionBar(content = msg.content, onRetry = onRetry)
+                MessageActionBar(
+                    content = msg.content,
+                    onRetry = onRetry,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
             }
         }
     }
@@ -129,9 +116,9 @@ private fun StreamingIndicator(modifier: Modifier = Modifier) {
     )
 
     Row(
-        modifier = modifier.padding(top = 2.dp),
+        modifier = modifier.padding(top = 1.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         Box(
             modifier = Modifier
@@ -140,8 +127,9 @@ private fun StreamingIndicator(modifier: Modifier = Modifier) {
                 .background(ChatTheme.colors.brand, CircleShape),
         )
         Text(
-            text = "AI 正在生成…",
-            fontSize = 12.sp,
+            text = "正在生成",
+            fontSize = 11.5.sp,
+            fontWeight = FontWeight.Medium,
             color = ChatTheme.colors.brand,
         )
     }
