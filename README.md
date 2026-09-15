@@ -1,5 +1,15 @@
 # Android AI Native Agent
 
+<p align="left">
+  <img src="https://img.shields.io/badge/Android-API%2029%2B-3DDC84?logo=android&logoColor=white" alt="Android API 29+" />
+  <img src="https://img.shields.io/badge/Kotlin-2.4.10-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 2.4.10" />
+  <img src="https://img.shields.io/badge/Compose-Multiplatform-4285F4?logo=jetpackcompose&logoColor=white" alt="Compose Multiplatform" />
+  <img src="https://img.shields.io/badge/Ktor-3.0.3-087CFA?logo=ktor&logoColor=white" alt="Ktor 3.0.3" />
+  <img src="https://img.shields.io/badge/LLM-DeepSeek-4D6BFE" alt="DeepSeek" />
+  <img src="https://img.shields.io/badge/Agent-Tool%20Calling-CC785C" alt="Tool Calling" />
+  <img src="https://img.shields.io/badge/Status-Active%20Development-D97706" alt="Active Development" />
+</p>
+
 一个运行在普通第三方 Android 应用中的 AI Agent 学习与实践项目，基于 **Kotlin Multiplatform + Compose Multiplatform** 构建。
 
 项目当前已完成 DeepSeek 多轮流式聊天、思考过程展示，以及第一个端侧 Tool Calling：模型可以请求应用读取手机真实电量与充电状态，再结合工具结果生成自然语言回答。
