@@ -28,4 +28,13 @@ interface LlmProvider {
      */
     fun streamChatDetailed(messages: List<ChatMessage>): Flow<LlmChunk> =
         streamChat(messages).map { LlmChunk.Content(it) }
+
+    /**
+     * 类型化的工具能力入口：携带历史、可用工具与是否允许工具调用。区分 [LlmChunk.Reasoning]、
+     * [LlmChunk.Content] 与 [LlmChunk.ToolCallReceived]。
+     *
+     * 默认实现忽略工具，退化为 [streamChatDetailed]；支持工具调用的 provider（如 DeepSeek）重写本方法。
+     */
+    fun stream(request: LlmRequest): Flow<LlmChunk> =
+        streamChatDetailed(request.messages)
 }

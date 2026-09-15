@@ -16,7 +16,7 @@ suspend fun HttpResponse.collectSseData(onData: suspend (String) -> Unit) {
     bodyAsChannel().collectSseData(onData)
 }
 
-internal suspend fun ByteReadChannel.collectSseData(onData: suspend (String) -> Unit) {
+suspend fun ByteReadChannel.collectSseData(onData: suspend (String) -> Unit) {
     val dataLines = mutableListOf<String>()
 
     suspend fun dispatch(): Boolean {

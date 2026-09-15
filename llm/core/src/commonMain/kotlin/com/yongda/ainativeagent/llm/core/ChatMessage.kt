@@ -6,10 +6,14 @@ package com.yongda.ainativeagent.llm.core
 data class ChatMessage(
     val role: Role,
     val content: String,
+    val reasoningContent: String? = null,
+    val toolCalls: List<ToolCall> = emptyList(),
+    val toolCallId: String? = null,
 ) {
     enum class Role {
         SYSTEM,
         USER,
         ASSISTANT,
+        TOOL,
     }
 }

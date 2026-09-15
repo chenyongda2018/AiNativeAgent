@@ -7,7 +7,7 @@ plugins {
 
 kotlin {
     android {
-        namespace = "com.yongda.ainativeagent.chat.vm"
+        namespace = "com.yongda.ainativeagent.tool.core"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 
@@ -19,16 +19,11 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            api(project(":chat:ui"))          // 复用 UI 状态契约
-            api(project(":llm:core"))         // 只依赖抽象 LlmProvider，不绑定具体实现
-            api(project(":tool:battery"))     // 单一工具阶段：电量工具抽象与契约（纯逻辑，无 Android）
-            implementation(libs.kotlinx.coroutines.core)
+            api(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
-            implementation(libs.androidx.lifecycle.viewmodel)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
-            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

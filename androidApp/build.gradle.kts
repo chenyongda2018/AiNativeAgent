@@ -23,6 +23,7 @@ kotlin {
 }
 dependencies {
     implementation(project(":shared"))
+    implementation(project(":tool:battery"))
 
     implementation(libs.androidx.activity.compose)
 

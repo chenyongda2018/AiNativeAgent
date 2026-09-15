@@ -4,13 +4,13 @@ import com.yongda.ainativeagent.llm.core.ChatMessage
 import com.yongda.ainativeagent.llm.core.LlmChunk
 import com.yongda.ainativeagent.llm.core.LlmConfig
 import com.yongda.ainativeagent.llm.core.LlmProvider
-import com.yongda.ainativeagent.llm.net.LlmJson
-import com.yongda.ainativeagent.llm.net.collectSseData
+import com.yongda.ainativeagent.llm.core.LlmRequest
 import com.yongda.ainativeagent.llm.net.createLlmHttpClient
 import io.ktor.client.HttpClient
 import io.ktor.client.request.header
 import io.ktor.client.request.preparePost
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.mapNotNull
 /**
  * DeepSeek 云端 [LlmProvider] 实现（OpenAI-compatible，SSE 流式）。默认开启思考模式：
  * 流式响应先流出 reasoning_content（→ [LlmChunk.Reasoning]），再流出 content（→ [LlmChunk.Content]）。
+ * 请求携带工具时，参数聚合完整后额外流出 [LlmChunk.ToolCallReceived]。
  *
  * @param client 可注入自定义 HttpClient（测试 / 复用连接池）；默认用 [createLlmHttpClient]。
  */
@@ -37,27 +38,31 @@ class DeepSeekProvider(
     override fun streamChat(messages: List<ChatMessage>): Flow<String> =
         streamChatDetailed(messages).mapNotNull { (it as? LlmChunk.Content)?.text }
 
-    override fun streamChatDetailed(messages: List<ChatMessage>): Flow<LlmChunk> = flow {
-        val request = ChatCompletionRequest(
+    override fun streamChatDetailed(messages: List<ChatMessage>): Flow<LlmChunk> =
+        stream(LlmRequest(messages))
+
+    override fun stream(request: LlmRequest): Flow<LlmChunk> = flow {
+        val toolSpecs = request.tools
+            .takeIf { it.isNotEmpty() && request.allowToolCalls }
+            ?.map { it.toWire() }
+        val body = ChatCompletionRequest(
             model = config.model,
-            messages = messages.map { RequestMessage(it.role.toWire(), it.content) },
+            messages = request.messages.map { it.toWire() },
             stream = true,
             thinking = ThinkingConfig(type = "enabled"),
+            tools = toolSpecs,
+            toolChoice = if (toolSpecs != null) "auto" else null,
         )
         client.preparePost("${config.baseUrl.trimEnd('/')}/chat/completions") {
             header(HttpHeaders.Authorization, "Bearer ${config.apiKey}")
             header(HttpHeaders.Accept, ContentType.Text.EventStream.toString())
             contentType(ContentType.Application.Json)
-            setBody(request)
+            setBody(body)
         }.execute { response ->
             if (!response.status.isSuccess()) {
                 error("DeepSeek 请求失败: ${response.status} ${response.bodyAsText()}")
             }
-            response.collectSseData { data ->
-                val delta = LlmJson.decodeFromString<ChatCompletionChunk>(data).choices.firstOrNull()?.delta
-                delta?.reasoningContent?.takeIf { it.isNotEmpty() }?.let { emit(LlmChunk.Reasoning(it)) }
-                delta?.content?.takeIf { it.isNotEmpty() }?.let { emit(LlmChunk.Content(it)) }
-            }
+            response.bodyAsChannel().collectDeepSeekChunks { emit(it) }
         }
     }
 

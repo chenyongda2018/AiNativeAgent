@@ -39,32 +39,37 @@ import kotlin.time.TimeSource
  *  - 中断生成：[cancel] 取消协程，已生成部分定格为完成态。
  *  - 重试：[retry] 丢弃失败的助手占位并用当前历史重发。
  *
- * 只依赖抽象 provider，与 DeepSeek/OpenAI/本地模型无关，可独立复用。
+ * 只依赖抽象 [ChatTurnEngine]，与 DeepSeek/OpenAI/本地模型、是否带工具无关，可独立复用。
  *
- * @param providerFactory 按 modelId 产出对应的 [LlmProvider]（id 即 API `model` 名）。首次用到某模型时
+ * @param engineFactory 按 modelId 产出对应的 [ChatTurnEngine]（id 即 API `model` 名）。首次用到某模型时
  *   构造并缓存，切换模型不重建 ViewModel、聊天历史得以保留。
  * @param initialModelId 初始选中的模型 id，写入 [ChatUiState.modelId] 供 UI 展示。
  */
 class ChatViewModel(
-    private val providerFactory: (modelId: String) -> LlmProvider,
+    private val engineFactory: (modelId: String) -> ChatTurnEngine,
     initialModelId: String,
     private val systemPrompt: String = DEFAULT_SYSTEM_PROMPT,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
-    /** 单一固定 provider 的便捷构造（测试 / 不需要切换模型的场景）。 */
+    /** 单一固定 provider 的便捷构造（测试 / 不需要切换模型也不带工具的场景）。 */
     constructor(
         provider: LlmProvider,
         systemPrompt: String = DEFAULT_SYSTEM_PROMPT,
         dispatcher: CoroutineDispatcher = Dispatchers.Default,
-    ) : this({ provider }, ChatModels.default.id, systemPrompt, dispatcher)
+    ) : this(
+        { ChatTurnEngine { history -> provider.streamChatDetailed(history) } },
+        ChatModels.default.id,
+        systemPrompt,
+        dispatcher,
+    )
 
     private val _state = MutableStateFlow(ChatUiState(modelId = initialModelId))
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
 
     private var currentModelId = initialModelId
-    private val providerCache = mutableMapOf<String, LlmProvider>()
-    private fun provider(): LlmProvider = providerCache.getOrPut(currentModelId) { providerFactory(currentModelId) }
+    private val engineCache = mutableMapOf<String, ChatTurnEngine>()
+    private fun engine(): ChatTurnEngine = engineCache.getOrPut(currentModelId) { engineFactory(currentModelId) }
 
     private var streamJob: Job? = null
     private var nextId = 0L
@@ -125,10 +130,20 @@ class ChatViewModel(
             val receivedContent = StringBuilder()
             try {
                 ensureActive()
-                // 构造发给模型的历史：system + 除本次占位外的全部消息
+                // 构造发给模型的历史：system + 除本次占位外的全部消息。
+                // 回传每轮 assistant 的 reasoning_content：DeepSeek 在请求携带 tools 时要求回传历史推理，
+                // 否则后续轮次会返回 400。非思考 provider 忽略该字段。
                 val history = buildList {
                     add(ChatMessage(ChatMessage.Role.SYSTEM, systemPrompt))
-                    messages.forEach { add(ChatMessage(it.role.toCore(), it.content)) }
+                    messages.forEach {
+                        add(
+                            ChatMessage(
+                                role = it.role.toCore(),
+                                content = it.content,
+                                reasoningContent = it.thinking?.text?.takeIf { text -> text.isNotEmpty() },
+                            ),
+                        )
+                    }
                 }
                 coroutineScope {
                     // 正式回答走显示节奏器（打字机效果）；思考过程实时累积到 thinking，不参与节奏控制。
@@ -141,7 +156,7 @@ class ChatViewModel(
                     val reasoning = StringBuilder()
                     var reasoningStart: TimeMark? = null
                     try {
-                        provider().streamChatDetailed(history).collect { chunk ->
+                        engine().run(history).collect { chunk ->
                             when (chunk) {
                                 is LlmChunk.Reasoning -> {
                                     val start = reasoningStart
@@ -154,6 +169,7 @@ class ChatViewModel(
                                     receivedContent.append(chunk.text)
                                     contentDeltas.send(chunk.text)
                                 }
+                                is LlmChunk.ToolCallReceived -> Unit
                             }
                         }
                     } finally {

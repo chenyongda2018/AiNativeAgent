@@ -47,6 +47,7 @@ kotlin {
             // 聊天界面：UI + ViewModel + DeepSeek provider 装配
             implementation(project(":chat:vm"))
             implementation(project(":llm:deepseek"))
+            implementation(project(":tool:battery"))
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
