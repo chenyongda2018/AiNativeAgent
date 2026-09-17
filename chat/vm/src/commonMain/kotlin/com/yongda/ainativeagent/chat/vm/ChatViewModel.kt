@@ -44,12 +44,15 @@ import kotlin.time.TimeSource
  * @param engineFactory 按 modelId 产出对应的 [ChatTurnEngine]（id 即 API `model` 名）。首次用到某模型时
  *   构造并缓存，切换模型不重建 ViewModel、聊天历史得以保留。
  * @param initialModelId 初始选中的模型 id，写入 [ChatUiState.modelId] 供 UI 展示。
+ * @param timeContextProvider 每轮生成前调用，返回要追加到系统提示里的「设备当前日期时间 / 时区」上下文
+ *   （返回 null 表示不追加）。让模型能可靠处理「今天 / 明天」等相对时间。由平台边界注入真实时钟。
  */
 class ChatViewModel(
     private val engineFactory: (modelId: String) -> ChatTurnEngine,
     initialModelId: String,
     private val systemPrompt: String = DEFAULT_SYSTEM_PROMPT,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val timeContextProvider: () -> String? = { null },
 ) : ViewModel() {
 
     /** 单一固定 provider 的便捷构造（测试 / 不需要切换模型也不带工具的场景）。 */
@@ -134,7 +137,7 @@ class ChatViewModel(
                 // 回传每轮 assistant 的 reasoning_content：DeepSeek 在请求携带 tools 时要求回传历史推理，
                 // 否则后续轮次会返回 400。非思考 provider 忽略该字段。
                 val history = buildList {
-                    add(ChatMessage(ChatMessage.Role.SYSTEM, systemPrompt))
+                    add(ChatMessage(ChatMessage.Role.SYSTEM, effectiveSystemPrompt()))
                     messages.forEach {
                         add(
                             ChatMessage(
@@ -234,6 +237,12 @@ class ChatViewModel(
     private fun ChatRole.toCore(): ChatMessage.Role = when (this) {
         ChatRole.USER -> ChatMessage.Role.USER
         ChatRole.ASSISTANT -> ChatMessage.Role.ASSISTANT
+    }
+
+    /** 系统提示 = 固定人设 + 每轮刷新的设备时间上下文（若提供）。 */
+    private fun effectiveSystemPrompt(): String {
+        val timeContext = timeContextProvider()?.takeIf { it.isNotBlank() } ?: return systemPrompt
+        return "$systemPrompt\n\n$timeContext"
     }
 
     companion object {

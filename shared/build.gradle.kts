@@ -48,6 +48,7 @@ kotlin {
             implementation(project(":chat:vm"))
             implementation(project(":llm:deepseek"))
             implementation(project(":tool:battery"))
+            implementation(project(":tool:calendar")) // 日历工具契约 / 确认桥（确认弹窗需要其类型）
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

@@ -2,8 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 危险运行时权限：仅在真实执行日历工具时按需申请（查询用 READ，写操作在确认后用 WRITE），
+         绝不在 App 启动时申请。二者各自独立申请，不依赖权限组自动联动。 -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
 
     <application
+        android:name=".AiNativeAgentApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"

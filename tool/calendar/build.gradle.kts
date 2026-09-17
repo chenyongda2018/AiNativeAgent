@@ -7,7 +7,7 @@ plugins {
 
 kotlin {
     android {
-        namespace = "com.yongda.ainativeagent.tool.core"
+        namespace = "com.yongda.ainativeagent.tool.calendar"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 
@@ -19,8 +19,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            api(libs.kotlinx.coroutines.core)
-            api(project(":llm:core")) // ToolDefinition / ToolCall：工具定义与调用契约
+            api(project(":tool:core"))   // AgentTool / ToolRegistry / ToolExecutionResult
+            api(project(":llm:core"))    // ToolDefinition
+            implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
         }
         commonTest.dependencies {
