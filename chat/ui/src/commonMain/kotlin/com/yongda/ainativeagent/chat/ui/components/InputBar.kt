@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
@@ -59,6 +60,7 @@ internal fun InputBar(
     modifier: Modifier = Modifier,
 ) {
     var text by rememberSaveable { mutableStateOf("") }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     Box(
         modifier = modifier
@@ -72,7 +74,6 @@ internal fun InputBar(
             shape = RoundedCornerShape(ChatTactileTokens.radiusPanel),
             color = ChatTheme.colors.dockSurface,
             border = BorderStroke(1.dp, ChatTheme.colors.borderInteractive),
-            shadowElevation = ChatTactileTokens.elevationFloating,
         ) {
             Column(modifier = Modifier.padding(start = 14.dp, top = 13.dp, end = 10.dp, bottom = 9.dp)) {
                 BasicTextField(
@@ -140,6 +141,7 @@ internal fun InputBar(
                                     if (message.isNotEmpty()) {
                                         onSend(message)
                                         text = ""
+                                        keyboardController?.hide()
                                     }
                                 }
                             },

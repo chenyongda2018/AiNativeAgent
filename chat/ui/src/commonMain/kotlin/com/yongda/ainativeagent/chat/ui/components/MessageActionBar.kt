@@ -9,8 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.ThumbDown
-import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.outlined.ThumbDown
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -47,13 +47,13 @@ internal fun MessageActionBar(
             onClick = { clipboardManager.setText(AnnotatedString(content)) },
         )
         MessageAction(
-            icon = Icons.Default.ThumbUp,
+            icon = Icons.Outlined.ThumbUp,
             contentDescription = "点赞",
             tint = if (feedback == Feedback.LIKE) ChatTheme.colors.brand else ChatTheme.colors.textTertiary,
             onClick = { feedback = if (feedback == Feedback.LIKE) null else Feedback.LIKE },
         )
         MessageAction(
-            icon = Icons.Default.ThumbDown,
+            icon = Icons.Outlined.ThumbDown,
             contentDescription = "点踩",
             tint = if (feedback == Feedback.DISLIKE) ChatTheme.colors.error else ChatTheme.colors.textTertiary,
             onClick = { feedback = if (feedback == Feedback.DISLIKE) null else Feedback.DISLIKE },
