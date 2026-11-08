@@ -29,6 +29,20 @@ kotlin {
            instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
        }
     }
+
+    listOf(
+        iosArm64(),
+        iosSimulatorArm64(),
+    ).forEach { iosTarget ->
+        iosTarget.binaries.framework {
+            baseName = "Shared"
+            isStatic = true
+            binaryOption("bundleId", "com.yongda.ainativeagent.shared")
+        }
+        iosTarget.binaries.all {
+            linkerOpts("-Wl,-U,_OBJC_CLASS_\$_UIViewLayoutRegion")
+        }
+    }
     
     sourceSets {
         androidMain.dependencies {

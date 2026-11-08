@@ -114,6 +114,7 @@ androidApp → shared → chat:vm → llm:core
 - JDK 17+
 - Android SDK 36
 - Android 10（API 29）及以上设备或模拟器
+- macOS (Apple Silicon arm64) 与 Xcode 16+（如需运行 iOS Simulator 宿主）
 - DeepSeek API Key
 
 ## 快速开始
@@ -152,7 +153,42 @@ androidApp/build/outputs/apk/debug/
 
 也可以直接通过 Android Studio 运行 `androidApp`。
 
-### 4. 验证工具能力
+### 4. iOS Simulator 运行与构建
+
+项目提供基于 SwiftUI + ComposeUIViewController 的 iOS 宿主工程 `iosApp`（支持 `iosArm64` 与 `iosSimulatorArm64`）。
+
+#### 4.1 本地配置与 Xcode 运行
+
+Xcode 工程内置了自动配置构建阶段（Build Phase），在每次点击 **Run** 时会自动调用 `prepare-local-config.sh` 读取环境变量或 `local.properties` 并安全注入，**无需手动前置运行脚本**。
+
+- 直接在 Xcode 中打开 `iosApp/iosApp.xcodeproj`，在顶部选择已启动的模拟器（如 iPhone 16 Plus），点击 **Run** 即可。
+- 若需要通过命令行测试或显式安全隔离构建，可随时手动执行脚本：
+  ```bash
+  # 显式安全无凭据模式
+  SAFE_DISABLE_CREDENTIALS=1 ./iosApp/scripts/prepare-local-config.sh
+  ```
+
+#### 4.2 命令行构建与安装到模拟器
+
+```bash
+# 构建 iOS 模拟器 App
+xcodebuild -project iosApp/iosApp.xcodeproj \
+  -scheme iosApp \
+  -configuration Debug \
+  -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath iosApp/build/DerivedData \
+  CODE_SIGNING_ALLOWED=NO build
+
+# 查看已启动模拟器的 UUID 并安装启动
+UUID=$(xcrun simctl list devices booted | grep -E -o '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' | head -n 1)
+xcrun simctl install "$UUID" iosApp/build/DerivedData/Build/Products/Debug-iphonesimulator/iosApp.app
+xcrun simctl launch "$UUID" com.yongda.ainativeagent.ios
+```
+
+> **iOS 工具限制**：当前 iOS 首期版本仅开放纯文本流式聊天，未接入 iOS 系统日历与电池等本地工具（空 ToolRegistry），模型系统人设明确声明当前平台不支持设备操作。未配置 key 时界面友好提示配置指引，禁止发送空请求。
+
+### 5. 验证工具能力
 
 启动应用后可分别验证：
 
@@ -204,9 +240,19 @@ androidApp/build/outputs/apk/debug/
 
 `DeepSeekProviderIntegrationTest` 在检测到 API Key 时会进行真实网络请求；离线环境可只运行上面的协议单元测试。
 
+运行 iOS Simulator Native 测试：
+
+```bash
+./gradlew \
+  :shared:iosSimulatorArm64Test \
+  :chat:vm:iosSimulatorArm64Test \
+  :llm:net:iosSimulatorArm64Test \
+  :llm:deepseek:iosSimulatorArm64Test
+```
+
 ## 当前边界
 
-- 目前仅支持 Android 目标。
+- 支持 Android 目标与 iOS Simulator 目标（iOS 暂未接入 EventKit/UIDevice 本地工具）。
 - 工具集：只读电量 + 日历日程 CRUD。
 - 日历首版不支持参会人、复杂提醒与单个实例（重复日程的修改/删除作用于整个系列，确认框会明确提示）。
 - 不具备系统级设备控制能力。

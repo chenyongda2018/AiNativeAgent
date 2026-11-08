@@ -81,7 +81,8 @@ internal fun InputBar(
                     onValueChange = { text = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = ChatTactileTokens.minimumTouchTarget, max = 120.dp),
+                        .heightIn(min = ChatTactileTokens.minimumTouchTarget, max = 120.dp)
+                        .semantics { contentDescription = "消息输入框" },
                     textStyle = TextStyle(
                         fontSize = 15.sp,
                         lineHeight = 22.sp,

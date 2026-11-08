@@ -21,3 +21,6 @@ node_modules/
 /roadmap
 /ui-ref/
 /.claude/
+
+# Local agent execution plans (not product documentation)
+/docs/superpowers/plans/

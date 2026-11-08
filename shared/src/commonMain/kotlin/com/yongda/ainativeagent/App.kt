@@ -32,6 +32,7 @@ import com.yongda.ainativeagent.tool.core.ToolRegistry
  * @param confirmationController 日历写操作确认的「工具 ↔ UI」桥；本函数观察其状态渲染确认弹窗。
  * @param rationaleController 权限教育（rationale）的「宿主 ↔ UI」桥；本函数观察其状态渲染说明弹窗。
  * @param timeContextProvider 每轮生成前提供「设备当前时间 / 时区」上下文，供模型处理相对时间。
+ * @param systemPrompt 模型系统人设，默认为 Android 平台设定。
  */
 @Composable
 fun App(
@@ -40,6 +41,7 @@ fun App(
     confirmationController: CalendarConfirmationController,
     rationaleController: PermissionRationaleController,
     timeContextProvider: () -> String? = { null },
+    systemPrompt: String = ANDROID_AGENT_SYSTEM_PROMPT,
 ) {
     ChatTheme(darkTheme = isSystemInDarkTheme()) {
         Surface(
@@ -56,7 +58,7 @@ fun App(
                         )
                     },
                     initialModelId = ChatModels.default.id,
-                    systemPrompt = AGENT_SYSTEM_PROMPT,
+                    systemPrompt = systemPrompt,
                     timeContextProvider = timeContextProvider,
                 )
             }
@@ -85,16 +87,3 @@ fun App(
         }
     }
 }
-
-/** 面向日历工具的系统人设：说明可用工具、时间格式约定、重复日程整系列语义与写操作确认流程。 */
-private const val AGENT_SYSTEM_PROMPT: String =
-    "你是一个运行在 Android 手机上的中文 AI 助手，回答简洁、准确。你可以调用工具读取电量，以及查询、" +
-        "新增、修改、删除设备日历日程。使用日历工具时遵守：\n" +
-        "1) 时间一律用带时区偏移的 ISO-8601（如 2026-09-16T14:30:00+08:00），并显式给出 IANA 时区（如 " +
-        "Asia/Shanghai）；结束时间必须晚于开始时间。\n" +
-        "2) 处理“今天/明天/本周”等相对时间时，以系统提供的设备当前时间与时区为基准换算成具体时间。\n" +
-        "3) 修改或删除前，先用 query_calendar_events 找到目标事件的 eventId，再据此操作，不要臆造 id。\n" +
-        "4) 新增/修改/删除属于写操作，应用会在执行前弹出确认框并按需申请权限；若返回 USER_CANCELLED 或权限被拒，" +
-        "请如实告知用户，不要假装已完成。\n" +
-        "5) 重复日程的修改/删除会作用于整个系列，操作前向用户说明清楚。\n" +
-        "6) 一次只调用一个工具，需要多步时分步进行。"

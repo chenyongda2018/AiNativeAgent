@@ -1,12 +1,12 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents when working with code in this repository.
 
 ## What this project is
 
 **Android AI Native Agent** — a learning/portfolio project building an on-device AI agent as an ordinary third-party Android app. Explicit non-goals: **not** a system-level agent, not a full phone-automation assistant, not dependent on system signature or root. Design within normal app permissions.
 
-The repo is currently a fresh **Kotlin Multiplatform + Compose Multiplatform** starter template (Greeting/`getPlatform()` sample code). The agent itself has **not been built yet** — nearly all work ahead is greenfield, added incrementally per the roadmap below.
+The repo has implemented LLM streaming chat, Compose Multiplatform UI, Agent Loop, Tool Registry (Android battery & calendar tools), confirmation/rationale dialogs, and an iOS Simulator host (`iosApp`). iOS targets `iosArm64` and `iosSimulatorArm64` are supported with a thin SwiftUI wrapper and Darwin network engine (with no local device tools registered on iOS).
 
 ## Build & test
 
@@ -22,8 +22,9 @@ The repo is currently a fresh **Kotlin Multiplatform + Compose Multiplatform** s
 
 ## Module structure
 
-- **`:shared`** — Kotlin Multiplatform library (`com.yongda.ainativeagent.shared`). Configured via the newer `com.android.kotlin.multiplatform.library` plugin (not the classic android-library plugin). Only `commonMain` + `androidMain` targets exist today; agent logic (Compose UI, Agent Runtime, Tools, Model layer) is intended to live here so it stays platform-agnostic. Uses `expect`/`actual` for platform APIs (see `Platform.kt` / `Platform.android.kt`).
-- **`:androidApp`** — thin Android application (`com.yongda.ainativeagent`). `MainActivity` just calls `App()` from `:shared`. Keep this module thin; put real code in `:shared`.
+- **`:shared`** — Kotlin Multiplatform library (`com.yongda.ainativeagent.shared`). Configured via the newer `com.android.kotlin.multiplatform.library` plugin and Kotlin/Native iOS targets (`iosArm64`, `iosSimulatorArm64`). Agent logic (Compose UI, Agent Runtime, Tools, Model layer) lives in shared KMP modules. Uses `expect`/`actual` for platform APIs (see `Platform.kt`, `LlmHttpClient.kt`). Exports static framework `Shared` for iOS.
+- **`:androidApp`** — thin Android application (`com.yongda.ainativeagent`). `MainActivity` just calls `App()` from `:shared`.
+- **`iosApp`** — thin iOS SwiftUI application project (`iosApp.xcodeproj`) embedding `Shared.framework` via ComposeUIViewController.
 
 Package root everywhere: `com.yongda.ainativeagent`. Kotlin source lives under `src/*/kotlin/` (not `java/`).
 
@@ -75,5 +76,4 @@ Cross-cutting concerns pulled early (per roadmap notes): minimal **Trace/logging
 
 ## Notes
 
-- This directory is **not a git repository** yet.
 - `androidApp/src/main/AndroidManifest.xml` currently declares only the `INTERNET` permission; add runtime-dangerous permissions (Calendar, Contacts, etc.) as their tool phases arrive.
