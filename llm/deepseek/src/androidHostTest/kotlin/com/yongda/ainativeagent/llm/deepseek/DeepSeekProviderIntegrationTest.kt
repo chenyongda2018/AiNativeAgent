@@ -46,8 +46,14 @@ class DeepSeekProviderIntegrationTest {
         assertTrue(reply.isNotEmpty(), "流式回复不应为空")
     }
 
-    /** 先查环境变量，再从工作目录向上逐级找 local.properties。 */
+    /** 先查环境变量，再从工作目录向上逐级找 local.properties。若处于安全测试模式，直接返回空跳过真联网。 */
     private fun resolveApiKey(): String {
+        if (System.getenv("SAFE_DISABLE_CREDENTIALS") == "1" ||
+            System.getenv("SAFE_DISABLE_CREDENTIALS") == "true" ||
+            System.getProperty("SAFE_DISABLE_CREDENTIALS") == "true"
+        ) {
+            return ""
+        }
         System.getenv("DEEPSEEK_API_KEY")?.takeIf { it.isNotBlank() }?.let { return it }
 
         var dir: File? = File(System.getProperty("user.dir").orEmpty()).absoluteFile

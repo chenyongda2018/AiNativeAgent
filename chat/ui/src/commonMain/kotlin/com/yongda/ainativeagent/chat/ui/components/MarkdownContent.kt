@@ -6,6 +6,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.sp
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.model.State
@@ -34,7 +35,7 @@ internal fun StreamingText(content: String, modifier: Modifier = Modifier) {
                 fontSize = 14.5.sp,
                 lineHeight = 23.sp,
                 color = ChatTheme.colors.textPrimary,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("assistant_message_content"),
             )
         }
     }
@@ -57,10 +58,10 @@ internal fun CachedMarkdown(msg: ChatMessageUi, cache: MarkdownRenderCache, modi
     if (result is State.Success) {
         Markdown(
             state = result,
-            modifier = modifier.fillMaxWidth(),
+            modifier = modifier.fillMaxWidth().testTag("assistant_message_content"),
             animations = markdownAnimations(animateTextSize = { this }),
         )
     } else {
-        StreamingText(msg.content, modifier)
+        StreamingText(msg.content, modifier.testTag("assistant_message_content"))
     }
 }

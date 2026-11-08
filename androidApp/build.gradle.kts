@@ -8,7 +8,14 @@ plugins {
 
 // 构建时从 local.properties 读 DEEPSEEK_API_KEY，编译进 BuildConfig 供真机 App 读取。
 // key 不入库（local.properties 已被 .gitignore 忽略）。注意：仅供本地/调试，勿用于 release。
+// 支持 SAFE_DISABLE_CREDENTIALS 显式安全隔离模式，强制返回空值，不读取任何凭据。
 val deepSeekApiKey: String = run {
+    if (providers.gradleProperty("SAFE_DISABLE_CREDENTIALS").orNull == "true" ||
+        providers.environmentVariable("SAFE_DISABLE_CREDENTIALS").orNull == "true" ||
+        providers.environmentVariable("SAFE_DISABLE_CREDENTIALS").orNull == "1"
+    ) {
+        return@run ""
+    }
     val f = rootProject.file("local.properties")
     if (!f.exists()) return@run ""
     val props = Properties()

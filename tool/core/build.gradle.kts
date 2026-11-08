@@ -17,6 +17,9 @@ kotlin {
         withHostTest {}
     }
 
+    iosArm64()
+    iosSimulatorArm64()
+
     sourceSets {
         commonMain.dependencies {
             api(libs.kotlinx.coroutines.core)

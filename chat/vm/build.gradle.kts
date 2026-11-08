@@ -17,6 +17,15 @@ kotlin {
         withHostTest {}
     }
 
+    listOf(
+        iosArm64(),
+        iosSimulatorArm64(),
+    ).forEach { iosTarget ->
+        iosTarget.binaries.all {
+            linkerOpts("-Wl,-U,_OBJC_CLASS_\$_UIViewLayoutRegion")
+        }
+    }
+
     sourceSets {
         commonMain.dependencies {
             api(project(":chat:ui"))          // 复用 UI 状态契约
