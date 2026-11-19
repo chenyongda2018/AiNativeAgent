@@ -1,0 +1,19 @@
+androidApp/src/main/AndroidManifest.xml
+  s_421b4dfaf10946::t_8210577333f138 17-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "29144fa195f1e2626493171232b6e6d8df9d8a7c",
+  "prompts": {},
+  "sessions": {
+    "s_421b4dfaf10946": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f3d0-6dd6-7891-adfb-d84f4db7e6cf",
+        "model": "unknown"
+      },
+      "human_author": "chenyongda2018 <chenchenyongda@gmail.com>"
+    }
+  }
+}
