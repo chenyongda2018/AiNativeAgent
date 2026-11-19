@@ -25,7 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,6 +33,74 @@ import com.yongda.ainativeagent.chat.ui.ChatMessageUi
 import com.yongda.ainativeagent.chat.ui.MarkdownRenderCache
 import com.yongda.ainativeagent.chat.ui.theme.ChatTactileTokens
 import com.yongda.ainativeagent.chat.ui.theme.ChatTheme
+
+/** 与头像宽（26dp）+ 水平间距（9dp）严格对齐，供块级 Markdown item 缩进复用。 */
+internal val ASSISTANT_CONTENT_START_PADDING = 35.dp
+
+@Composable
+internal fun AssistantAvatar(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.size(26.dp),
+        shape = RoundedCornerShape(ChatTactileTokens.radiusSmall),
+        color = ChatTheme.colors.surface,
+        border = BorderStroke(1.dp, ChatTheme.colors.borderSubtle),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = ChatTheme.colors.brand,
+            )
+        }
+    }
+}
+
+/** 块级懒加载模式下的助手消息头部（头像 + 模型名 + 可选思考区）。 */
+@Composable
+internal fun AssistantMessageHeader(
+    msg: ChatMessageUi,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(9.dp),
+    ) {
+        AssistantAvatar()
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            Text(
+                text = msg.modelName ?: "AI",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = ChatTheme.colors.textPrimary,
+            )
+            msg.thinking?.let { thinking ->
+                ThinkingSection(
+                    thinking = thinking,
+                    defaultExpanded = msg.streaming && msg.content.isEmpty(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+/** 块级懒加载模式下的助手消息底部操作栏。 */
+@Composable
+internal fun AssistantMessageFooter(
+    content: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    MessageActionBar(
+        content = content,
+        onRetry = onRetry,
+        modifier = modifier,
+    )
+}
 
 @Composable
 internal fun AssistantMessageItem(
@@ -45,21 +113,7 @@ internal fun AssistantMessageItem(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(9.dp),
     ) {
-        Surface(
-            modifier = Modifier.size(26.dp),
-            shape = RoundedCornerShape(ChatTactileTokens.radiusSmall),
-            color = ChatTheme.colors.surface,
-            border = BorderStroke(1.dp, ChatTheme.colors.borderSubtle),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = ChatTheme.colors.brand,
-                )
-            }
-        }
+        AssistantAvatar()
 
         Column(
             modifier = Modifier.weight(1f),
@@ -123,7 +177,7 @@ private fun StreamingIndicator(modifier: Modifier = Modifier) {
         Box(
             modifier = Modifier
                 .size(6.dp)
-                .alpha(dotAlpha)
+                .graphicsLayer { alpha = dotAlpha }
                 .background(ChatTheme.colors.brand, CircleShape),
         )
         Text(

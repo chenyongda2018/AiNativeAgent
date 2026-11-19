@@ -22,6 +22,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -135,32 +136,37 @@ class ChatScreenInteractionTest {
                 useUnmergedTree = true,
             ).fetchSemanticsNodes().isNotEmpty()
         }
+        val list = compose.onNode(
+            SemanticsMatcher.keyIsDefined(SemanticsActions.ScrollToIndex),
+        )
         compose.onNodeWithText("# Offline stream", useUnmergedTree = true)
             .assertDoesNotExist()
+        list.performScrollToNode(hasText("Offline stream"))
         compose.onNodeWithText("Offline stream", useUnmergedTree = true)
-            .performScrollTo().assertIsDisplayed()
+            .assertIsDisplayed()
+        list.performScrollToNode(hasText("First paragraph keeps every token."))
         compose.onNodeWithText(
             "First paragraph keeps every token.",
             useUnmergedTree = true,
         ).assertExists()
-        compose.onNode(
+        val secondParagraphMatcher =
             SemanticsMatcher("Second paragraph retains all text after normalizing inline-code spacing") { node ->
                 node.config.contains(SemanticsProperties.Text) &&
                     node.config[SemanticsProperties.Text].any { text ->
                         text.text.replace(Regex("[ \u00A0]+"), " ") ==
                             "Second paragraph keeps split chunks intact."
                     }
-            },
-            useUnmergedTree = true,
-        ).assertExists()
+            }
+        list.performScrollToNode(secondParagraphMatcher)
+        compose.onNode(secondParagraphMatcher, useUnmergedTree = true).assertExists()
         (1..24).forEach {
-            compose.onNodeWithText(
-                "Synthetic paragraph $it retains its complete offline payload.",
-                useUnmergedTree = true,
-            ).assertExists()
+            val paragraphText = "Synthetic paragraph $it retains its complete offline payload."
+            list.performScrollToNode(hasText(paragraphText))
+            compose.onNodeWithText(paragraphText, useUnmergedTree = true).assertExists()
         }
+        list.performScrollToNode(hasText("Final marker."))
         compose.onNodeWithText("Final marker.", useUnmergedTree = true)
-            .performScrollTo().assertIsDisplayed()
+            .assertIsDisplayed()
         compose.onNodeWithText("停止").assertDoesNotExist()
     }
 

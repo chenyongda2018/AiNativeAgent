@@ -4,10 +4,12 @@ import com.mikepenz.markdown.model.State
 import com.mikepenz.markdown.model.parseMarkdownFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import org.intellij.markdown.MarkdownTokenTypes
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 class ChatRenderingTest {
     @Test
@@ -76,6 +78,42 @@ class ChatRenderingTest {
         assertNull(cache.get(2, "oversized"))
         cache.put(3, parse("sixsix"))
         assertEquals("sixsix", cache.get(3, "sixsix")?.content)
+    }
+
+    @Test
+    fun cachePeekReadsWithoutRefreshingLruOrder() = runBlocking {
+        val cache = MarkdownRenderCache(maxEntries = 2)
+        val first = parse("one")
+        cache.put(1, first)
+        cache.put(2, parse("two"))
+
+        assertSame(first, cache.peek(1, "one"))
+        cache.put(3, parse("three"))
+
+        assertNull(cache.peek(1, "one"))
+        assertEquals("two", cache.peek(2, "two")?.content)
+    }
+
+    @Test
+    fun extractRenderableMarkdownNodesFiltersEolAndKeepsContentBlocks() = runBlocking {
+        val state = parse("# Title\n\nParagraph one.\n\n```kotlin\nval x = 1\n```\n\n- item a\n- item b")
+        val blocks = extractRenderableMarkdownNodes(state)
+
+        assertEquals(4, blocks.size)
+        assertTrue(blocks.none { it.type == MarkdownTokenTypes.EOL || it.type == MarkdownTokenTypes.WHITE_SPACE })
+    }
+
+    @Test
+    fun findAnchorBlockIndexPreservesReadingParagraphOnLongReplySplit() = runBlocking {
+        val content = (1..180).joinToString("\n\n") { "Paragraph $it keeps enough text for anchor mapping." }
+        val state = parse(content)
+        val blocks = extractRenderableMarkdownNodes(state)
+
+        assertEquals(180, blocks.size)
+        assertEquals(0, findAnchorBlockIndex(blocks, content.length, 0f))
+        assertEquals(179, findAnchorBlockIndex(blocks, content.length, 1f))
+        val anchor84 = findAnchorBlockIndex(blocks, content.length, 84f / 180f)
+        assertTrue(anchor84 in 82..86, "Expected anchor near paragraph 84, got $anchor84")
     }
 
     private suspend fun parse(content: String): State.Success =
