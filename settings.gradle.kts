@@ -29,6 +29,7 @@ dependencyResolutionManagement {
 
 include(":androidApp")
 include(":shared")
+include(":agent:runtime")
 include(":llm:core")
 include(":llm:net")
 include(":llm:deepseek")

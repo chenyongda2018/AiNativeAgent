@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
                 registry = graph.toolRegistry,
                 confirmationController = graph.confirmationController,
                 rationaleController = graph.rationaleController,
+                httpClient = graph.llmHttpClient,
                 timeContextProvider = ::currentTimeContext,
             )
         }

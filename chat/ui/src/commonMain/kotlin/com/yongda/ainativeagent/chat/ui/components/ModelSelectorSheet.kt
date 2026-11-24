@@ -34,13 +34,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yongda.ainativeagent.chat.ui.ChatModel
-import com.yongda.ainativeagent.chat.ui.ChatModels
 import com.yongda.ainativeagent.chat.ui.theme.ChatTactileTokens
 import com.yongda.ainativeagent.chat.ui.theme.ChatTheme
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun ModelSelectorSheet(
+    models: List<ChatModel>,
     selectedModelId: String,
     onSelectModel: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -92,7 +92,7 @@ internal fun ModelSelectorSheet(
             Spacer(Modifier.height(14.dp))
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                items(ChatModels.all, key = { it.id }) { model ->
+                items(models, key = { it.id }) { model ->
                     ModelCard(
                         model = model,
                         isSelected = model.id == selectedModelId,

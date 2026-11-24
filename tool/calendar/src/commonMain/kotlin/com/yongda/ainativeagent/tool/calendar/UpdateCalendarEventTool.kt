@@ -3,8 +3,12 @@ package com.yongda.ainativeagent.tool.calendar
 import com.yongda.ainativeagent.llm.core.ToolDefinition
 import com.yongda.ainativeagent.tool.calendar.CalendarToolContracts as C
 import com.yongda.ainativeagent.tool.core.AgentTool
+import com.yongda.ainativeagent.tool.core.ConfirmationDecision
+import com.yongda.ainativeagent.tool.core.ToolConfirmationPresenter
 import com.yongda.ainativeagent.tool.core.ToolExecutionResult
+import com.yongda.ainativeagent.tool.core.ToolPermissionController
 import com.yongda.ainativeagent.tool.core.ToolResults
+import com.yongda.ainativeagent.tool.core.requireGranted
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -13,8 +17,8 @@ import kotlinx.coroutines.CancellationException
  */
 class UpdateCalendarEventTool(
     private val dataSource: CalendarDataSource,
-    private val permissions: CalendarPermissionController,
-    private val confirmation: CalendarConfirmationPresenter,
+    private val permissions: ToolPermissionController,
+    private val confirmation: ToolConfirmationPresenter,
 ) : AgentTool {
 
     override val definition: ToolDefinition = C.updateDefinition
@@ -25,7 +29,7 @@ class UpdateCalendarEventTool(
             is ArgResult.Ok -> r.value
         }
 
-        permissions.requireGranted(CalendarPermission.READ)?.let { return it }
+        permissions.requireGranted(CalendarPermissions.READ)?.let { return it }
 
         val existing = try {
             dataSource.getEvent(args.eventId)
@@ -41,7 +45,7 @@ class UpdateCalendarEventTool(
         }
 
         val decision = confirmation.confirm(
-            CalendarConfirmation.Update(
+            CalendarConfirmationRequests.update(
                 title = existing.title,
                 changes = plan.changes,
                 recurring = existing.isRecurring,
@@ -51,7 +55,7 @@ class UpdateCalendarEventTool(
             return ToolResults.terminalFailure(C.ERR_USER_CANCELLED, "用户取消了修改日程")
         }
 
-        permissions.requireGranted(CalendarPermission.WRITE)?.let { return it }
+        permissions.requireGranted(CalendarPermissions.WRITE)?.let { return it }
 
         return try {
             val ok = dataSource.updateEvent(args.eventId, plan.draft)

@@ -4,7 +4,9 @@ import com.yongda.ainativeagent.llm.core.ToolDefinition
 import com.yongda.ainativeagent.tool.calendar.CalendarToolContracts as C
 import com.yongda.ainativeagent.tool.core.AgentTool
 import com.yongda.ainativeagent.tool.core.ToolExecutionResult
+import com.yongda.ainativeagent.tool.core.ToolPermissionController
 import com.yongda.ainativeagent.tool.core.ToolResults
+import com.yongda.ainativeagent.tool.core.requireGranted
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -13,7 +15,7 @@ import kotlinx.coroutines.CancellationException
  */
 class QueryCalendarEventsTool(
     private val dataSource: CalendarDataSource,
-    private val permissions: CalendarPermissionController,
+    private val permissions: ToolPermissionController,
     private val now: CurrentTime,
 ) : AgentTool {
 
@@ -33,7 +35,7 @@ class QueryCalendarEventsTool(
             return ToolResults.failure(C.ERR_INVALID_TIME_RANGE, "有效查询区间的结束时间必须晚于开始时间")
         }
 
-        permissions.requireGranted(CalendarPermission.READ)?.let { return it }
+        permissions.requireGranted(CalendarPermissions.READ)?.let { return it }
 
         val query = EventQuery(start, end, args.keyword, args.limit)
         return try {

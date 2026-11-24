@@ -39,7 +39,7 @@ fun ChatScreen(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var showModelSheet by remember { mutableStateOf(false) }
-    val selectedModelName = ChatModels.nameOf(state.modelId)
+    val selectedModelName = state.selectedModelName
     val markdownCache = remember { MarkdownRenderCache() }
 
     ModalNavigationDrawer(
@@ -90,8 +90,9 @@ fun ChatScreen(
         }
     }
 
-    if (showModelSheet) {
+    if (showModelSheet && state.availableModels.isNotEmpty()) {
         ModelSelectorSheet(
+            models = state.availableModels,
             selectedModelId = state.modelId,
             onSelectModel = onSelectModel,
             onDismiss = { showModelSheet = false },

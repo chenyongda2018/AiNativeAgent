@@ -22,8 +22,13 @@ The repo has implemented LLM streaming chat, Compose Multiplatform UI, Agent Loo
 
 ## Module structure
 
-- **`:shared`** — Kotlin Multiplatform library (`com.yongda.ainativeagent.shared`). Configured via the newer `com.android.kotlin.multiplatform.library` plugin and Kotlin/Native iOS targets (`iosArm64`, `iosSimulatorArm64`). Agent logic (Compose UI, Agent Runtime, Tools, Model layer) lives in shared KMP modules. Uses `expect`/`actual` for platform APIs (see `Platform.kt`, `LlmHttpClient.kt`). Exports static framework `Shared` for iOS.
-- **`:androidApp`** — thin Android application (`com.yongda.ainativeagent`). `MainActivity` just calls `App()` from `:shared`.
+- **`:shared`** — Kotlin Multiplatform library (`com.yongda.ainativeagent.shared`). Configured via the newer `com.android.kotlin.multiplatform.library` plugin and Kotlin/Native iOS targets (`iosArm64`, `iosSimulatorArm64`). Acts as the CMP composition root (`App()`, generic `ToolConfirmationDialog`, `PermissionRationaleDialog`, `MainViewController`), decoupled from concrete tool implementations. Exports static framework `Shared` for iOS.
+- **`:agent:runtime`** — Kotlin Multiplatform domain runtime (`AgentLoopExecutor`, `AgentTurnEngine`, `AgentTurnEvent`, `ConversationHistory`, `ToolTrace`). Depends only on `:llm:core` and `:tool:core`.
+- **`:chat:ui`** — Pure Compose Multiplatform chat UI (`ChatScreen`, `ChatUiState`, `ChatModel`, `ToolCallTraceSection`) with no LLM-provider or business dependencies.
+- **`:chat:vm`** — Presentation ViewModel (`ChatViewModel`, `StreamTextPacer`), bridging `:agent:runtime` events to `:chat:ui` state.
+- **`:llm:core` / `:llm:net` / `:llm:deepseek`** — Provider abstraction, Ktor + SSE (`expect`/`actual` via `LlmHttpClient.kt`), and DeepSeek implementation + model catalog (`DeepSeekModels`).
+- **`:tool:core` / `:tool:battery` / `:tool:calendar`** — Generic `AgentTool` / `ToolRegistry` / HITL `ToolConfirmationController` / `PermissionGateway` + `PermissionRequestCoordinator`, plus concrete battery and calendar tools.
+- **`:androidApp`** — thin Android application (`com.yongda.ainativeagent`). `AiNativeAgentApp` holds the process-level dependency graph (`ToolRegistry`, shared `HttpClient`, `PermissionGateway`, `ToolConfirmationController`, `PermissionRationaleController`) and `MainActivity` attaches `AndroidPermissionHost` and calls `App()` from `:shared`.
 - **`iosApp`** — thin iOS SwiftUI application project (`iosApp.xcodeproj`) embedding `Shared.framework` via ComposeUIViewController.
 
 Package root everywhere: `com.yongda.ainativeagent`. Kotlin source lives under `src/*/kotlin/` (not `java/`).
@@ -76,4 +81,4 @@ Cross-cutting concerns pulled early (per roadmap notes): minimal **Trace/logging
 
 ## Notes
 
-- `androidApp/src/main/AndroidManifest.xml` currently declares only the `INTERNET` permission; add runtime-dangerous permissions (Calendar, Contacts, etc.) as their tool phases arrive.
+- `androidApp/src/main/AndroidManifest.xml` declares `INTERNET` plus `READ_CALENDAR` and `WRITE_CALENDAR` (requested on-demand at runtime via `PermissionGateway` / `AndroidPermissionHost`); add further runtime-dangerous permissions (Contacts, Location, etc.) as their tool phases arrive.

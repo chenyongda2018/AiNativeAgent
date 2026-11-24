@@ -61,8 +61,7 @@ kotlin {
             // 聊天界面：UI + ViewModel + DeepSeek provider 装配
             implementation(project(":chat:vm"))
             implementation(project(":llm:deepseek"))
-            implementation(project(":tool:battery"))
-            implementation(project(":tool:calendar")) // 日历工具契约 / 确认桥（确认弹窗需要其类型）
+            implementation(project(":llm:net"))
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

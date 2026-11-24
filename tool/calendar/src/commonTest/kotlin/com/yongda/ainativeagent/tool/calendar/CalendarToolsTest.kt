@@ -1,6 +1,8 @@
 package com.yongda.ainativeagent.tool.calendar
 
 import com.yongda.ainativeagent.tool.calendar.CalendarToolContracts as C
+import com.yongda.ainativeagent.tool.core.ConfirmationDecision
+import com.yongda.ainativeagent.tool.core.PermissionResult
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -34,7 +36,7 @@ class CalendarToolsTest {
         val result = tool.execute("""{"timeMin":"2026-09-16T00:00:00+08:00","timeMax":"2026-09-17T00:00:00+08:00"}""")
 
         assertTrue(result.ok)
-        assertEquals(listOf(CalendarPermission.READ), perms.requested)
+        assertEquals(listOf(CalendarPermissions.READ), perms.requested)
         assertTrue(result.contentJson.contains("评审会"))
         assertTrue(result.contentJson.contains("\"count\":1"))
     }
@@ -42,7 +44,7 @@ class CalendarToolsTest {
     @Test
     fun queryDeniedReturnsStructuredErrorAndDoesNotTouchDataSource() = runTest {
         val ds = FakeCalendarDataSource()
-        val perms = FakeCalendarPermissionController(mapOf(CalendarPermission.READ to PermissionResult.DENIED))
+        val perms = FakeCalendarPermissionController(mapOf(CalendarPermissions.READ to PermissionResult.DENIED))
         val tool = QueryCalendarEventsTool(ds, perms, FixedTime(now))
 
         val result = tool.execute("{}")
@@ -76,9 +78,10 @@ class CalendarToolsTest {
 
         assertTrue(result.ok)
         // 顺序：先 READ（解析目标），确认后再 WRITE。
-        assertEquals(listOf(CalendarPermission.READ, CalendarPermission.WRITE), perms.requested)
+        assertEquals(listOf(CalendarPermissions.READ, CalendarPermissions.WRITE), perms.requested)
         assertEquals(1, confirm.requests.size)
-        assertTrue(confirm.requests.first() is CalendarConfirmation.Create)
+        assertEquals("新增日程", confirm.requests.first().title)
+        assertFalse(confirm.requests.first().destructive)
         assertEquals(1, ds.createdDrafts.size)
         assertEquals("牙医", ds.createdDrafts.first().title)
     }
@@ -95,7 +98,7 @@ class CalendarToolsTest {
         )
 
         assertEquals(C.ERR_USER_CANCELLED, result.errorCode)
-        assertEquals(listOf(CalendarPermission.READ), perms.requested) // 未申请 WRITE
+        assertEquals(listOf(CalendarPermissions.READ), perms.requested) // 未申请 WRITE
         assertTrue(ds.createdDrafts.isEmpty())
     }
 
@@ -128,7 +131,7 @@ class CalendarToolsTest {
     fun createWritePermanentlyDeniedAfterConfirm() = runTest {
         val ds = FakeCalendarDataSource()
         val perms = FakeCalendarPermissionController(
-            mapOf(CalendarPermission.WRITE to PermissionResult.PERMANENTLY_DENIED),
+            mapOf(CalendarPermissions.WRITE to PermissionResult.PERMANENTLY_DENIED),
         )
         val tool = CreateCalendarEventTool(ds, perms, FakeConfirmationPresenter())
         val result = tool.execute(
@@ -151,10 +154,11 @@ class CalendarToolsTest {
         val result = tool.execute("""{"eventId":42,"title":"新评审会"}""")
 
         assertTrue(result.ok)
-        assertEquals(listOf(CalendarPermission.READ, CalendarPermission.WRITE), perms.requested)
-        val req = confirm.requests.single() as CalendarConfirmation.Update
-        assertEquals("评审会", req.title)
-        assertTrue(req.changes.any { it.label == "标题" })
+        assertEquals(listOf(CalendarPermissions.READ, CalendarPermissions.WRITE), perms.requested)
+        val req = confirm.requests.single()
+        assertEquals("修改日程", req.title)
+        assertTrue(req.subtitle?.contains("评审会") == true)
+        assertTrue(req.fields.any { it.label == "标题" })
         assertEquals("新评审会", ds.events[42]?.title)
     }
 
@@ -173,7 +177,7 @@ class CalendarToolsTest {
         val confirm = FakeConfirmationPresenter()
         val tool = UpdateCalendarEventTool(ds, FakeCalendarPermissionController(), confirm)
         tool.execute("""{"eventId":42,"title":"改"}""")
-        assertTrue((confirm.requests.single() as CalendarConfirmation.Update).recurring)
+        assertTrue(confirm.requests.single().warning?.contains("整个系列") == true)
     }
 
     // ---- delete ----
@@ -189,8 +193,10 @@ class CalendarToolsTest {
         val result = tool.execute("""{"eventId":42}""")
 
         assertTrue(result.ok)
-        assertEquals(listOf(CalendarPermission.READ, CalendarPermission.WRITE), perms.requested)
-        assertTrue(confirm.requests.single() is CalendarConfirmation.Delete)
+        assertEquals(listOf(CalendarPermissions.READ, CalendarPermissions.WRITE), perms.requested)
+        val req = confirm.requests.single()
+        assertEquals("删除日程", req.title)
+        assertTrue(req.destructive)
         assertFalse(ds.events.containsKey(42))
     }
 
@@ -204,7 +210,7 @@ class CalendarToolsTest {
         val result = tool.execute("""{"eventId":42}""")
 
         assertEquals(C.ERR_USER_CANCELLED, result.errorCode)
-        assertEquals(listOf(CalendarPermission.READ), perms.requested)
+        assertEquals(listOf(CalendarPermissions.READ), perms.requested)
         assertTrue(ds.events.containsKey(42))
     }
 

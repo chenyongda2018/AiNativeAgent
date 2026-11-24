@@ -4,45 +4,54 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.yongda.ainativeagent.chat.ui.ChatModels
+import com.yongda.ainativeagent.agent.runtime.AgentLoopExecutor
+import com.yongda.ainativeagent.agent.runtime.PrintlnToolTrace
+import com.yongda.ainativeagent.chat.ui.ChatModel
 import com.yongda.ainativeagent.chat.ui.ChatScreen
 import com.yongda.ainativeagent.chat.ui.theme.ChatTheme
-import com.yongda.ainativeagent.chat.vm.AgentLoopExecutor
 import com.yongda.ainativeagent.chat.vm.ChatViewModel
-import com.yongda.ainativeagent.chat.vm.PrintlnToolTrace
+import com.yongda.ainativeagent.llm.deepseek.DeepSeekModelInfo
+import com.yongda.ainativeagent.llm.deepseek.DeepSeekModels
 import com.yongda.ainativeagent.llm.deepseek.DeepSeekProvider
-import com.yongda.ainativeagent.tool.calendar.CalendarConfirmationController
-import com.yongda.ainativeagent.tool.calendar.PermissionRationaleController
+import com.yongda.ainativeagent.llm.net.createLlmHttpClient
+import com.yongda.ainativeagent.tool.core.PermissionRationaleController
+import com.yongda.ainativeagent.tool.core.ToolConfirmationController
 import com.yongda.ainativeagent.tool.core.ToolRegistry
+import io.ktor.client.HttpClient
 
 /**
  * App 入口：装配 DeepSeek provider + 多步 Agent Loop（面向 [ToolRegistry] 的工具集合）+ ChatViewModel +
- * 纯 UI 的 ChatScreen，并在其上叠加应用级的日历写操作确认弹窗与权限教育弹窗。
+ * 纯 UI 的 ChatScreen，并在其上按需叠加应用级的通用操作确认弹窗与权限教育弹窗。
  *
- * 平台相关依赖（工具注册表、确认控制器、权限教育控制器、设备时间上下文）全部由宿主 [MainActivity] 从进程级
- * 依赖图注入；本 Composable 与 commonMain 都不直接触碰 Android `Context` / `Activity`。这些控制器长期存活，
- * 配置变更（旋转 / 深色切换 / Activity 重建）后 retained ViewModel 与新 UI 仍观察同一实例，确认/权限流不丢。
- *
- * @param apiKey DeepSeek API key，由 androidApp 的 BuildConfig 注入，不入库。
- * @param registry 已装配好的工具注册表（电量 + 日历 CRUD）。
- * @param confirmationController 日历写操作确认的「工具 ↔ UI」桥；本函数观察其状态渲染确认弹窗。
- * @param rationaleController 权限教育（rationale）的「宿主 ↔ UI」桥；本函数观察其状态渲染说明弹窗。
- * @param timeContextProvider 每轮生成前提供「设备当前时间 / 时区」上下文，供模型处理相对时间。
- * @param systemPrompt 模型系统人设，默认为 Android 平台设定。
+ * 平台相关依赖（工具注册表、通用确认控制器、权限教育控制器、共享 [HttpClient]、设备时间上下文）由宿主注入；
+ * 本 Composable 与 commonMain 都不直接触碰 Android `Context` / `Activity` 或具体工具模块。
  */
 @Composable
 fun App(
     apiKey: String,
-    registry: ToolRegistry,
-    confirmationController: CalendarConfirmationController,
-    rationaleController: PermissionRationaleController,
+    registry: ToolRegistry = ToolRegistry(emptyList()),
+    confirmationController: ToolConfirmationController? = null,
+    rationaleController: PermissionRationaleController? = null,
+    httpClient: HttpClient? = null,
     timeContextProvider: () -> String? = { null },
     systemPrompt: String = ANDROID_AGENT_SYSTEM_PROMPT,
+    toolLabelResolver: (String) -> String = ::defaultToolLabel,
 ) {
+    val ownedClient = remember(httpClient) { if (httpClient == null) createLlmHttpClient() else null }
+    if (ownedClient != null) {
+        DisposableEffect(ownedClient) {
+            onDispose { ownedClient.close() }
+        }
+    }
+    val effectiveClient = httpClient ?: requireNotNull(ownedClient)
+    val availableModels = remember { DeepSeekModels.all.map { it.toChatModel() } }
+
     ChatTheme(darkTheme = isSystemInDarkTheme()) {
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -52,14 +61,20 @@ fun App(
                 ChatViewModel(
                     engineFactory = { modelId ->
                         AgentLoopExecutor(
-                            provider = DeepSeekProvider.withApiKey(apiKey, model = modelId),
+                            provider = DeepSeekProvider.withApiKey(
+                                apiKey = apiKey,
+                                model = modelId,
+                                client = effectiveClient,
+                            ),
                             registry = registry,
                             trace = PrintlnToolTrace(),
                         )
                     },
-                    initialModelId = ChatModels.default.id,
+                    initialModelId = DeepSeekModels.default.id,
+                    availableModels = availableModels,
                     systemPrompt = systemPrompt,
                     timeContextProvider = timeContextProvider,
+                    toolLabelResolver = toolLabelResolver,
                 )
             }
             val state by vm.state.collectAsStateWithLifecycle()
@@ -69,21 +84,44 @@ fun App(
                 onCancel = vm::cancel,
                 onRetry = vm::retry,
                 onSelectModel = vm::selectModel,
+                onNewChat = vm::newChat,
             )
 
-            val pending by confirmationController.pending.collectAsStateWithLifecycle()
-            CalendarConfirmationDialog(
-                request = pending,
-                onConfirm = { confirmationController.confirm() },
-                onDismiss = { confirmationController.cancel() },
-            )
+            confirmationController?.let { controller ->
+                val pending by controller.pending.collectAsStateWithLifecycle()
+                ToolConfirmationDialog(
+                    request = pending,
+                    onConfirm = { controller.confirm() },
+                    onDismiss = { controller.cancel() },
+                )
+            }
 
-            val rationale by rationaleController.pending.collectAsStateWithLifecycle()
-            PermissionRationaleDialog(
-                request = rationale,
-                onProceed = { rationaleController.proceed() },
-                onDismiss = { rationaleController.dismiss() },
-            )
+            rationaleController?.let { controller ->
+                val rationale by controller.pending.collectAsStateWithLifecycle()
+                PermissionRationaleDialog(
+                    request = rationale,
+                    onProceed = { controller.proceed() },
+                    onDismiss = { controller.dismiss() },
+                )
+            }
         }
     }
+}
+
+internal fun DeepSeekModelInfo.toChatModel(): ChatModel = ChatModel(
+    id = id,
+    name = name,
+    badge = badge,
+    tagline = tagline,
+    contextLimit = contextLimit,
+    thinkingSupported = thinkingSupported,
+)
+
+internal fun defaultToolLabel(toolName: String): String = when (toolName) {
+    "get_battery_level" -> "读取手机电量"
+    "query_calendar_events" -> "查询日程"
+    "create_calendar_event" -> "新增日程"
+    "update_calendar_event" -> "修改日程"
+    "delete_calendar_event" -> "删除日程"
+    else -> toolName
 }

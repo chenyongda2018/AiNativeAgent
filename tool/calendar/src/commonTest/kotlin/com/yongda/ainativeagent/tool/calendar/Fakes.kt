@@ -1,5 +1,12 @@
 package com.yongda.ainativeagent.tool.calendar
 
+import com.yongda.ainativeagent.tool.core.ConfirmationDecision
+import com.yongda.ainativeagent.tool.core.PermissionResult
+import com.yongda.ainativeagent.tool.core.ToolConfirmationPresenter
+import com.yongda.ainativeagent.tool.core.ToolConfirmationRequest
+import com.yongda.ainativeagent.tool.core.ToolPermission
+import com.yongda.ainativeagent.tool.core.ToolPermissionController
+
 /** 内存版日历数据源：供工具单测做 CRUD，绝不触碰真实设备日历。 */
 class FakeCalendarDataSource(
     var calendars: List<CalendarInfo> = listOf(
@@ -86,13 +93,13 @@ class FakeCalendarDataSource(
 
 /** 记录每次权限申请顺序，并按权限返回可配置结果（默认 GRANTED）。 */
 class FakeCalendarPermissionController(
-    private val results: Map<CalendarPermission, PermissionResult> = emptyMap(),
+    private val results: Map<ToolPermission, PermissionResult> = emptyMap(),
     private val default: PermissionResult = PermissionResult.GRANTED,
-) : CalendarPermissionController {
+) : ToolPermissionController {
 
-    val requested = mutableListOf<CalendarPermission>()
+    val requested = mutableListOf<ToolPermission>()
 
-    override suspend fun request(permission: CalendarPermission): PermissionResult {
+    override suspend fun request(permission: ToolPermission): PermissionResult {
         requested += permission
         return results[permission] ?: default
     }
@@ -101,11 +108,11 @@ class FakeCalendarPermissionController(
 /** 记录收到的确认请求，并按配置返回决定（默认 CONFIRMED）。 */
 class FakeConfirmationPresenter(
     var decision: ConfirmationDecision = ConfirmationDecision.CONFIRMED,
-) : CalendarConfirmationPresenter {
+) : ToolConfirmationPresenter {
 
-    val requests = mutableListOf<CalendarConfirmation>()
+    val requests = mutableListOf<ToolConfirmationRequest>()
 
-    override suspend fun confirm(request: CalendarConfirmation): ConfirmationDecision {
+    override suspend fun confirm(request: ToolConfirmationRequest): ConfirmationDecision {
         requests += request
         return decision
     }

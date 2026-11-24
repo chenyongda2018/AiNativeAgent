@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,14 +24,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.ComposeUIViewController
 import com.yongda.ainativeagent.chat.ui.theme.ChatTheme
-import com.yongda.ainativeagent.tool.calendar.CalendarConfirmationController
-import com.yongda.ainativeagent.tool.calendar.PermissionRationaleController
+import com.yongda.ainativeagent.llm.net.createLlmHttpClient
 import com.yongda.ainativeagent.tool.core.ToolRegistry
+import io.ktor.client.HttpClient
 import platform.Foundation.NSDate
 import platform.Foundation.NSISO8601DateFormatter
 import platform.Foundation.NSTimeZone
 import platform.Foundation.localTimeZone
 import platform.UIKit.UIViewController
+
+/** iOS 进程内共享的 Ktor HttpClient，避免切换模型时重复建立连接池。 */
+private val iosHttpClient: HttpClient by lazy { createLlmHttpClient() }
 
 /**
  * iOS 应用入口控制器，由 Swift 宿主通过 UIViewControllerRepresentable 调用。
@@ -44,14 +46,11 @@ fun MainViewController(apiKey: String): UIViewController = ComposeUIViewControll
         MissingApiKeyView()
     } else {
         val registry = remember { ToolRegistry(emptyList()) }
-        val confirmationController = remember { CalendarConfirmationController() }
-        val rationaleController = remember { PermissionRationaleController() }
 
         App(
             apiKey = apiKey,
             registry = registry,
-            confirmationController = confirmationController,
-            rationaleController = rationaleController,
+            httpClient = iosHttpClient,
             timeContextProvider = { getIosTimeContext() },
             systemPrompt = IOS_CHAT_SYSTEM_PROMPT,
         )

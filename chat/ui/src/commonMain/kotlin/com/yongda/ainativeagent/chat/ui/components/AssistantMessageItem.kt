@@ -84,6 +84,12 @@ internal fun AssistantMessageHeader(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+            if (msg.toolCalls.isNotEmpty()) {
+                ToolCallTraceSection(
+                    toolCalls = msg.toolCalls,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }
@@ -130,6 +136,13 @@ internal fun AssistantMessageItem(
                 ThinkingSection(
                     thinking = thinking,
                     defaultExpanded = msg.streaming && msg.content.isEmpty(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            if (msg.toolCalls.isNotEmpty()) {
+                ToolCallTraceSection(
+                    toolCalls = msg.toolCalls,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

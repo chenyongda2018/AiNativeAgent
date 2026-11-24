@@ -3,8 +3,12 @@ package com.yongda.ainativeagent.tool.calendar
 import com.yongda.ainativeagent.llm.core.ToolDefinition
 import com.yongda.ainativeagent.tool.calendar.CalendarToolContracts as C
 import com.yongda.ainativeagent.tool.core.AgentTool
+import com.yongda.ainativeagent.tool.core.ConfirmationDecision
+import com.yongda.ainativeagent.tool.core.ToolConfirmationPresenter
 import com.yongda.ainativeagent.tool.core.ToolExecutionResult
+import com.yongda.ainativeagent.tool.core.ToolPermissionController
 import com.yongda.ainativeagent.tool.core.ToolResults
+import com.yongda.ainativeagent.tool.core.requireGranted
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -13,8 +17,8 @@ import kotlinx.coroutines.CancellationException
  */
 class DeleteCalendarEventTool(
     private val dataSource: CalendarDataSource,
-    private val permissions: CalendarPermissionController,
-    private val confirmation: CalendarConfirmationPresenter,
+    private val permissions: ToolPermissionController,
+    private val confirmation: ToolConfirmationPresenter,
 ) : AgentTool {
 
     override val definition: ToolDefinition = C.deleteDefinition
@@ -25,7 +29,7 @@ class DeleteCalendarEventTool(
             is ArgResult.Ok -> r.value
         }
 
-        permissions.requireGranted(CalendarPermission.READ)?.let { return it }
+        permissions.requireGranted(CalendarPermissions.READ)?.let { return it }
 
         val existing = try {
             dataSource.getEvent(eventId)
@@ -36,7 +40,7 @@ class DeleteCalendarEventTool(
         } ?: return ToolResults.failure(C.ERR_EVENT_NOT_FOUND, "找不到 eventId=$eventId 的日程")
 
         val decision = confirmation.confirm(
-            CalendarConfirmation.Delete(
+            CalendarConfirmationRequests.delete(
                 title = existing.title,
                 timeText = CalendarUpdatePlanner.timeText(
                     existing.startMillis, existing.endMillis, existing.allDay,
@@ -50,7 +54,7 @@ class DeleteCalendarEventTool(
             return ToolResults.terminalFailure(C.ERR_USER_CANCELLED, "用户取消了删除日程")
         }
 
-        permissions.requireGranted(CalendarPermission.WRITE)?.let { return it }
+        permissions.requireGranted(CalendarPermissions.WRITE)?.let { return it }
 
         return try {
             val ok = dataSource.deleteEvent(eventId)

@@ -1,6 +1,7 @@
 package com.yongda.ainativeagent.tool.calendar
 
 import com.yongda.ainativeagent.llm.core.ToolDefinition
+import com.yongda.ainativeagent.tool.core.ToolPermissionErrors
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
@@ -21,10 +22,10 @@ object CalendarToolContracts {
     // 错误码：稳定字符串，回填给模型也用于测试断言。
     const val ERR_INVALID_ARGUMENTS = "INVALID_ARGUMENTS"
     const val ERR_INVALID_TIME_RANGE = "INVALID_TIME_RANGE"
-    const val ERR_PERMISSION_DENIED = "PERMISSION_DENIED"
-    const val ERR_PERMISSION_PERMANENTLY_DENIED = "PERMISSION_PERMANENTLY_DENIED"
-    const val ERR_PERMISSION_CANCELLED = "PERMISSION_CANCELLED"
-    const val ERR_USER_CANCELLED = "USER_CANCELLED"
+    const val ERR_PERMISSION_DENIED = ToolPermissionErrors.ERR_PERMISSION_DENIED
+    const val ERR_PERMISSION_PERMANENTLY_DENIED = ToolPermissionErrors.ERR_PERMISSION_PERMANENTLY_DENIED
+    const val ERR_PERMISSION_CANCELLED = ToolPermissionErrors.ERR_PERMISSION_CANCELLED
+    const val ERR_USER_CANCELLED = ToolPermissionErrors.ERR_USER_CANCELLED
     const val ERR_NO_WRITABLE_CALENDAR = "NO_WRITABLE_CALENDAR"
     const val ERR_CALENDAR_NOT_FOUND = "CALENDAR_NOT_FOUND"
     const val ERR_EVENT_NOT_FOUND = "EVENT_NOT_FOUND"

@@ -1,17 +1,19 @@
 package com.yongda.ainativeagent.tool.calendar
 
 import com.yongda.ainativeagent.tool.core.AgentTool
+import com.yongda.ainativeagent.tool.core.ToolConfirmationPresenter
+import com.yongda.ainativeagent.tool.core.ToolPermissionController
 
 /**
- * 组装四个日历工具。由平台组合边界注入平台实现（[CalendarDataSource]、[CalendarPermissionController]、
- * [CalendarConfirmationPresenter]、[CurrentTime]），产出可直接放进 ToolRegistry 的 [AgentTool] 列表。
+ * 组装四个日历工具。由平台组合边界注入平台实现（[CalendarDataSource]、[ToolPermissionController]、
+ * [ToolConfirmationPresenter]、[CurrentTime]），产出可直接放进 ToolRegistry 的 [AgentTool] 列表。
  */
 object CalendarTools {
 
     fun create(
         dataSource: CalendarDataSource,
-        permissions: CalendarPermissionController,
-        confirmation: CalendarConfirmationPresenter,
+        permissions: ToolPermissionController,
+        confirmation: ToolConfirmationPresenter,
         now: CurrentTime,
     ): List<AgentTool> = listOf(
         QueryCalendarEventsTool(dataSource, permissions, now),

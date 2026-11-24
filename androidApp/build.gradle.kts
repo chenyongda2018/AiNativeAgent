@@ -30,6 +30,7 @@ kotlin {
 }
 dependencies {
     implementation(project(":shared"))
+    implementation(project(":llm:net"))
     implementation(project(":tool:core"))
     implementation(project(":tool:battery"))
     implementation(project(":tool:calendar"))

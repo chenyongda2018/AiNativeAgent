@@ -72,11 +72,12 @@ class DeepSeekProvider(
         /** 账号 /models 端点当前返回的推荐模型（截至 2026-09；旧的 deepseek-chat 已下线）。 */
         const val DEFAULT_MODEL: String = "deepseek-flash"
 
-        /** 便捷构造：只给 apiKey，baseUrl / model 用默认值。 */
+        /** 便捷构造：只给 apiKey，baseUrl / model / client 用默认值。 */
         fun withApiKey(
             apiKey: String,
             baseUrl: String = DEFAULT_BASE_URL,
             model: String = DEFAULT_MODEL,
-        ): DeepSeekProvider = DeepSeekProvider(LlmConfig(apiKey, baseUrl, model))
+            client: HttpClient = createLlmHttpClient(),
+        ): DeepSeekProvider = DeepSeekProvider(LlmConfig(apiKey, baseUrl, model), client = client)
     }
 }

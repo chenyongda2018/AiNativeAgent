@@ -3,8 +3,12 @@ package com.yongda.ainativeagent.tool.calendar
 import com.yongda.ainativeagent.llm.core.ToolDefinition
 import com.yongda.ainativeagent.tool.calendar.CalendarToolContracts as C
 import com.yongda.ainativeagent.tool.core.AgentTool
+import com.yongda.ainativeagent.tool.core.ConfirmationDecision
+import com.yongda.ainativeagent.tool.core.ToolConfirmationPresenter
 import com.yongda.ainativeagent.tool.core.ToolExecutionResult
+import com.yongda.ainativeagent.tool.core.ToolPermissionController
 import com.yongda.ainativeagent.tool.core.ToolResults
+import com.yongda.ainativeagent.tool.core.requireGranted
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -13,8 +17,8 @@ import kotlinx.coroutines.CancellationException
  */
 class CreateCalendarEventTool(
     private val dataSource: CalendarDataSource,
-    private val permissions: CalendarPermissionController,
-    private val confirmation: CalendarConfirmationPresenter,
+    private val permissions: ToolPermissionController,
+    private val confirmation: ToolConfirmationPresenter,
 ) : AgentTool {
 
     override val definition: ToolDefinition = C.createDefinition
@@ -26,7 +30,7 @@ class CreateCalendarEventTool(
         }
 
         // 先申请读权限以列出可写日历、解析目标。
-        permissions.requireGranted(CalendarPermission.READ)?.let { return it }
+        permissions.requireGranted(CalendarPermissions.READ)?.let { return it }
 
         val target = try {
             resolveTarget(args.calendarId)
@@ -42,7 +46,7 @@ class CreateCalendarEventTool(
 
         // 应用级确认（展示标题 / 时间 / 目标日历）。
         val decision = confirmation.confirm(
-            CalendarConfirmation.Create(
+            CalendarConfirmationRequests.create(
                 title = args.title,
                 timeText = args.displayTime,
                 targetCalendar = calendar.displayName,
@@ -54,7 +58,7 @@ class CreateCalendarEventTool(
         }
 
         // 确认后再申请写权限（不依赖权限组联动）。
-        permissions.requireGranted(CalendarPermission.WRITE)?.let { return it }
+        permissions.requireGranted(CalendarPermissions.WRITE)?.let { return it }
 
         val draft = EventDraft(
             calendarId = calendar.id,

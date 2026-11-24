@@ -1,9 +1,14 @@
 package com.yongda.ainativeagent.chat.vm
 
 import androidx.lifecycle.viewModelScope
+import com.yongda.ainativeagent.agent.runtime.AgentTurnEngine
+import com.yongda.ainativeagent.agent.runtime.AgentTurnEvent
 import com.yongda.ainativeagent.chat.ui.ChatRole
+import com.yongda.ainativeagent.chat.ui.ToolCallUi
+import com.yongda.ainativeagent.chat.ui.ToolCallUiStatus
 import com.yongda.ainativeagent.llm.core.ChatMessage
 import com.yongda.ainativeagent.llm.core.LlmProvider
+import com.yongda.ainativeagent.llm.core.ToolCall
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -361,6 +366,185 @@ class ChatViewModelTest {
         assertFalse(vm.state.value.isStreaming)
         assertEquals("", vm.state.value.messages.last().content)
         assertTrue(provider.requests.isEmpty())
+    }
+
+    @Test
+    fun toolLifecycleEventsUpdateStreamingAndFinalToolCallsAndPreserveCrossTurnHistory() = runTest {
+        val requests = mutableListOf<List<ChatMessage>>()
+        val toolCall = ToolCall("call_1", "get_battery_level", "{}")
+        val assistantToolMsg = ChatMessage(
+            role = ChatMessage.Role.ASSISTANT,
+            content = "",
+            reasoningContent = "checking battery",
+            toolCalls = listOf(toolCall),
+        )
+        val toolResultMsg = ChatMessage(
+            role = ChatMessage.Role.TOOL,
+            content = """{"ok":true,"level":88}""",
+            toolCallId = "call_1",
+        )
+        var turnIndex = 0
+        val engine = AgentTurnEngine { history ->
+            requests += history
+            val currentTurn = turnIndex++
+            flow {
+                if (currentTurn == 0) {
+                    emit(AgentTurnEvent.ReasoningDelta("checking battery"))
+                    emit(AgentTurnEvent.ToolCallStarted("call_1", "get_battery_level"))
+                    emit(AgentTurnEvent.ToolCallFinished("call_1", "get_battery_level", ok = true))
+                    emit(AgentTurnEvent.MessagesCommitted(listOf(assistantToolMsg, toolResultMsg)))
+                    emit(AgentTurnEvent.ContentDelta("电量 88%"))
+                    emit(
+                        AgentTurnEvent.MessagesCommitted(
+                            listOf(ChatMessage(ChatMessage.Role.ASSISTANT, "电量 88%", "checking battery")),
+                        ),
+                    )
+                } else {
+                    emit(AgentTurnEvent.ContentDelta("第二轮回答"))
+                    emit(AgentTurnEvent.MessagesCommitted(listOf(ChatMessage(ChatMessage.Role.ASSISTANT, "第二轮回答"))))
+                }
+            }
+        }
+        val vm = ChatViewModel(
+            engineFactory = { engine },
+            initialModelId = "test-model",
+            dispatcher = StandardTestDispatcher(testScheduler),
+            toolLabelResolver = { name -> if (name == "get_battery_level") "读取手机电量" else name },
+        ).also(viewModels::add)
+
+        vm.send("电量多少？")
+        advanceUntilIdle()
+
+        val assistantUi = vm.state.value.messages.last()
+        assertEquals(
+            listOf(ToolCallUi("call_1", "get_battery_level", "读取手机电量", ToolCallUiStatus.SUCCEEDED, null)),
+            assistantUi.toolCalls,
+        )
+        assertEquals("电量 88%", assistantUi.content)
+
+        vm.send("继续")
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                ChatMessage.Role.SYSTEM,
+                ChatMessage.Role.USER,
+                ChatMessage.Role.ASSISTANT,
+                ChatMessage.Role.TOOL,
+                ChatMessage.Role.ASSISTANT,
+                ChatMessage.Role.USER,
+            ),
+            requests[1].map { it.role },
+        )
+        assertEquals(listOf(toolCall), requests[1][2].toolCalls)
+        assertEquals("call_1", requests[1][3].toolCallId)
+    }
+
+    @Test
+    fun retryRollsBackFailedTurnToolTrajectoryWhileKeepingEarlierTurns() = runTest {
+        val requests = mutableListOf<List<ChatMessage>>()
+        var attempts = 0
+        val engine = AgentTurnEngine { history ->
+            requests += history
+            val attempt = attempts++
+            flow {
+                when (attempt) {
+                    0 -> {
+                        emit(
+                            AgentTurnEvent.MessagesCommitted(
+                                listOf(
+                                    ChatMessage(
+                                        ChatMessage.Role.ASSISTANT,
+                                        "",
+                                        toolCalls = listOf(ToolCall("c1", "get_battery_level", "{}")),
+                                    ),
+                                    ChatMessage(ChatMessage.Role.TOOL, """{"ok":true}""", toolCallId = "c1"),
+                                ),
+                            ),
+                        )
+                        emit(AgentTurnEvent.ContentDelta("ok"))
+                        emit(AgentTurnEvent.MessagesCommitted(listOf(ChatMessage(ChatMessage.Role.ASSISTANT, "ok"))))
+                    }
+                    1 -> {
+                        emit(AgentTurnEvent.ToolCallStarted("c2", "query_calendar_events"))
+                        emit(AgentTurnEvent.ToolCallFinished("c2", "query_calendar_events", ok = false, errorCode = "BOOM"))
+                        emit(
+                            AgentTurnEvent.MessagesCommitted(
+                                listOf(
+                                    ChatMessage(
+                                        ChatMessage.Role.ASSISTANT,
+                                        "",
+                                        toolCalls = listOf(ToolCall("c2", "query_calendar_events", "{}")),
+                                    ),
+                                    ChatMessage(ChatMessage.Role.TOOL, """{"ok":false}""", toolCallId = "c2"),
+                                ),
+                            ),
+                        )
+                        throw IllegalStateException("network dropped")
+                    }
+                    else -> {
+                        emit(AgentTurnEvent.ContentDelta("recovered"))
+                        emit(AgentTurnEvent.MessagesCommitted(listOf(ChatMessage(ChatMessage.Role.ASSISTANT, "recovered"))))
+                    }
+                }
+            }
+        }
+        val vm = ChatViewModel(
+            engineFactory = { engine },
+            initialModelId = "test-model",
+            dispatcher = StandardTestDispatcher(testScheduler),
+        ).also(viewModels::add)
+
+        vm.send("turn 1")
+        advanceUntilIdle()
+        vm.send("turn 2")
+        advanceUntilIdle()
+        assertEquals("network dropped", vm.state.value.error)
+
+        vm.retry()
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.error)
+        assertEquals("recovered", vm.state.value.messages.last().content)
+        // 第二次与第三次请求（失败那轮与重试那轮）发出的历史应完全一致：第一轮工具轨迹保留，第二轮中间工具已回滚。
+        assertEquals(requests[1], requests[2])
+    }
+
+    @Test
+    fun newChatResetsUiAndHistoryAndIgnoresCancelledInFlightStream() = runTest {
+        val requests = mutableListOf<List<ChatMessage>>()
+        val engine = AgentTurnEngine { history ->
+            requests += history
+            flow {
+                emit(AgentTurnEvent.ContentDelta("streaming chunk"))
+                awaitCancellation()
+            }
+        }
+        val vm = ChatViewModel(
+            engineFactory = { engine },
+            initialModelId = "test-model",
+            dispatcher = StandardTestDispatcher(testScheduler),
+        ).also(viewModels::add)
+
+        vm.send("old question")
+        runCurrent()
+        assertTrue(vm.state.value.isStreaming)
+
+        vm.newChat()
+        runCurrent()
+
+        assertFalse(vm.state.value.isStreaming)
+        assertTrue(vm.state.value.messages.isEmpty())
+        assertNull(vm.state.value.error)
+        assertEquals("test-model", vm.state.value.modelId)
+
+        vm.send("fresh question")
+        runCurrent()
+        vm.cancel()
+        advanceUntilIdle()
+
+        assertEquals(2, requests.last().size) // 仅 SYSTEM + "fresh question"
+        assertEquals("fresh question", requests.last().last().content)
     }
 
     private fun TestScope.viewModel(
