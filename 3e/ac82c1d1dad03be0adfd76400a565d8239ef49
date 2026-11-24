@@ -1,0 +1,118 @@
+AGENTS.md
+  h_ade3533aceece0 25-31,84
+README.md
+  h_ade3533aceece0 13,15,29-42,47,51,53,55,57,67,70,75,81-85,87-88,91-92,94,96,102-106,109,214,217-220,224-225,245,250-252
+agent/runtime/build.gradle.kts
+  h_ade3533aceece0 1-35
+agent/runtime/src/commonMain/kotlin/com/yongda/ainativeagent/agent/runtime/AgentLoopExecutor.kt
+  h_ade3533aceece0 1,23-26,43,45,68,72,78-87,98,101,104,106-109,111-112,114
+agent/runtime/src/commonMain/kotlin/com/yongda/ainativeagent/agent/runtime/AgentTurnEngine.kt
+  h_ade3533aceece0 1,5,7,10-11,13-46
+agent/runtime/src/commonMain/kotlin/com/yongda/ainativeagent/agent/runtime/AgentTurnEvent.kt
+  h_ade3533aceece0 1-35
+agent/runtime/src/commonMain/kotlin/com/yongda/ainativeagent/agent/runtime/ConversationHistory.kt
+  h_ade3533aceece0 1-64
+agent/runtime/src/commonMain/kotlin/com/yongda/ainativeagent/agent/runtime/PrintlnToolTrace.kt
+  h_ade3533aceece0 1
+agent/runtime/src/commonMain/kotlin/com/yongda/ainativeagent/agent/runtime/ToolTrace.kt
+  h_ade3533aceece0 1,4
+agent/runtime/src/commonTest/kotlin/com/yongda/ainativeagent/agent/runtime/AgentLoopExecutorReviewFixesTest.kt
+  h_ade3533aceece0 1,41,57,79,81-82,85-88
+agent/runtime/src/commonTest/kotlin/com/yongda/ainativeagent/agent/runtime/AgentLoopExecutorTest.kt
+  h_ade3533aceece0 1,31,35,38-46,50,58,62-86,108,113-117,128,131-133,170,186,191-194,198,212,214-216,222
+agent/runtime/src/commonTest/kotlin/com/yongda/ainativeagent/agent/runtime/ConversationHistoryTest.kt
+  h_ade3533aceece0 1,5-7,9,11-14,17-18,20-23,25,27-41,43-44,46-56,58-60,63-68,70-74
+androidApp/build.gradle.kts
+  h_ade3533aceece0 33
+androidApp/src/main/kotlin/com/yongda/ainativeagent/AiNativeAgentApp.kt
+  h_ade3533aceece0 4,10-12,14,19,22,29-33,36,38-39
+androidApp/src/main/kotlin/com/yongda/ainativeagent/AndroidPermissionHost.kt
+  h_ade3533aceece0 8-13,19,26-27,32,42,44,66,68-71
+androidApp/src/main/kotlin/com/yongda/ainativeagent/MainActivity.kt
+  h_ade3533aceece0 45
+chat/ui/src/commonMain/kotlin/com/yongda/ainativeagent/chat/ui/ChatModels.kt
+  h_ade3533aceece0 6-7
+chat/ui/src/commonMain/kotlin/com/yongda/ainativeagent/chat/ui/ChatScreen.kt
+  h_ade3533aceece0 42,93,95
+chat/ui/src/commonMain/kotlin/com/yongda/ainativeagent/chat/ui/ChatUiState.kt
+  h_ade3533aceece0 8-20,35,45-46,53-54,57-61
+chat/ui/src/commonMain/kotlin/com/yongda/ainativeagent/chat/ui/components/AssistantMessageItem.kt
+  h_ade3533aceece0 87-92,143-149
+chat/ui/src/commonMain/kotlin/com/yongda/ainativeagent/chat/ui/components/ModelSelectorSheet.kt
+  h_ade3533aceece0 43,95
+chat/ui/src/commonMain/kotlin/com/yongda/ainativeagent/chat/ui/components/ToolCallTraceSection.kt
+  h_ade3533aceece0 1-125
+chat/vm/build.gradle.kts
+  h_ade3533aceece0 31-32
+chat/vm/src/commonMain/kotlin/com/yongda/ainativeagent/chat/vm/ChatViewModel.kt
+  h_ade3533aceece0 5-8,10,14-15,24,29,39,41-45,48,50,54,63-73,76-86,89-90,97,99,105,107-112,121,123-127,129,131-134,139-155,159-173,180-182,186,191,194-196,199,201-208,210-220,229-235,237-244,249,252,254,260-263,265,272-275,277-281,288-333,335-345,347-359,361-366,384-408
+chat/vm/src/commonTest/kotlin/com/yongda/ainativeagent/chat/vm/ChatViewModelTest.kt
+  h_ade3533aceece0 4-5,7-8,11,371-549
+llm/deepseek/src/commonMain/kotlin/com/yongda/ainativeagent/llm/deepseek/DeepSeekModels.kt
+  h_ade3533aceece0 1-40
+llm/deepseek/src/commonMain/kotlin/com/yongda/ainativeagent/llm/deepseek/DeepSeekProvider.kt
+  h_ade3533aceece0 75,80-81
+settings.gradle.kts
+  h_ade3533aceece0 32
+shared/build.gradle.kts
+  h_ade3533aceece0 64
+shared/src/commonMain/kotlin/com/yongda/ainativeagent/App.kt
+  h_ade3533aceece0 7,9,13-15,19-20,22-24,26,30,32-33,38-41,44,46-54,64-68,73-74,77,87,90-97,99-106,110-127
+shared/src/commonMain/kotlin/com/yongda/ainativeagent/PermissionRationaleDialog.kt
+  h_ade3533aceece0 9,12,25-26
+shared/src/commonMain/kotlin/com/yongda/ainativeagent/ToolConfirmationDialog.kt
+  h_ade3533aceece0 16,19-20,22,25-26,34,37-53,60-61
+shared/src/commonTest/kotlin/com/yongda/ainativeagent/SharedCommonTest.kt
+  h_ade3533aceece0 3,6,11-15,17-27
+shared/src/iosMain/kotlin/com/yongda/ainativeagent/MainViewController.kt
+  h_ade3533aceece0 27,29,36-38,53
+tool/calendar/src/commonMain/kotlin/com/yongda/ainativeagent/tool/calendar/CalendarConfirmationRequests.kt
+  h_ade3533aceece0 1-54
+tool/calendar/src/commonMain/kotlin/com/yongda/ainativeagent/tool/calendar/CalendarPermissions.kt
+  h_ade3533aceece0 1-22
+tool/calendar/src/commonMain/kotlin/com/yongda/ainativeagent/tool/calendar/CalendarToolContracts.kt
+  h_ade3533aceece0 4,25-28
+tool/calendar/src/commonMain/kotlin/com/yongda/ainativeagent/tool/calendar/CalendarTools.kt
+  h_ade3533aceece0 4-5,8-9,15-16
+tool/calendar/src/commonMain/kotlin/com/yongda/ainativeagent/tool/calendar/CreateCalendarEventTool.kt
+  h_ade3533aceece0 6-7,9,11,20-21,33,49,61
+tool/calendar/src/commonMain/kotlin/com/yongda/ainativeagent/tool/calendar/DeleteCalendarEventTool.kt
+  h_ade3533aceece0 6-7,9,11,20-21,32,43,57
+tool/calendar/src/commonMain/kotlin/com/yongda/ainativeagent/tool/calendar/QueryCalendarEventsTool.kt
+  h_ade3533aceece0 7,9,18,38
+tool/calendar/src/commonMain/kotlin/com/yongda/ainativeagent/tool/calendar/UpdateCalendarEventTool.kt
+  h_ade3533aceece0 6-7,9,11,20-21,32,48,58
+tool/calendar/src/commonTest/kotlin/com/yongda/ainativeagent/tool/calendar/CalendarToolsTest.kt
+  h_ade3533aceece0 4-5,39,47,81,83-84,101,134,157-161,180,196-199,213
+tool/calendar/src/commonTest/kotlin/com/yongda/ainativeagent/tool/calendar/Fakes.kt
+  h_ade3533aceece0 3-9,96,98,100,102,111,113,115
+tool/core/src/commonMain/kotlin/com/yongda/ainativeagent/tool/core/PermissionGateway.kt
+  h_ade3533aceece0 1,7-8,11,15,24,38
+tool/core/src/commonMain/kotlin/com/yongda/ainativeagent/tool/core/PermissionRationaleController.kt
+  h_ade3533aceece0 1,8-9,12,19,23,30,34
+tool/core/src/commonMain/kotlin/com/yongda/ainativeagent/tool/core/PermissionRequestCoordinator.kt
+  h_ade3533aceece0 1
+tool/core/src/commonMain/kotlin/com/yongda/ainativeagent/tool/core/ToolConfirmation.kt
+  h_ade3533aceece0 1,8-15,18,20-27,33,35-36,40,43-44,46,48-50,54,58
+tool/core/src/commonMain/kotlin/com/yongda/ainativeagent/tool/core/ToolPermission.kt
+  h_ade3533aceece0 1,3-16,33,36-69
+tool/core/src/commonTest/kotlin/com/yongda/ainativeagent/tool/core/PermissionGatewayTest.kt
+  h_ade3533aceece0 1,11-14,17-18,26-27,32,35-36,41,45,51,58,60,65,69-70,72-73,82,90,93-94
+tool/core/src/commonTest/kotlin/com/yongda/ainativeagent/tool/core/PermissionRationaleControllerTest.kt
+  h_ade3533aceece0 1,13-26,30,32,42,54
+tool/core/src/commonTest/kotlin/com/yongda/ainativeagent/tool/core/PermissionRequestCoordinatorTest.kt
+  h_ade3533aceece0 1,102
+tool/core/src/commonTest/kotlin/com/yongda/ainativeagent/tool/core/ToolConfirmationControllerTest.kt
+  h_ade3533aceece0 1,11,15-23,29,36,38-45,48,57,59-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.6",
+  "base_commit_sha": "3eac82c1d1dad03be0adfd76400a565d8239ef49",
+  "prompts": {},
+  "humans": {
+    "h_ade3533aceece0": {
+      "author": "chenyongda2018 <chenchenyongda@gmail.com>"
+    }
+  }
+}
